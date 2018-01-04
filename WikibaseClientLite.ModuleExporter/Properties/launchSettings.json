@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WikibaseClientLite.ModuleExporter": {
+      "commandName": "Project",
+      "workingDirectory": "../_private/workdir"
+    }
+  }
+}

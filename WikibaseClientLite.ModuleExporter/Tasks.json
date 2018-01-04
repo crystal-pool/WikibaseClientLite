@@ -1,0 +1,11 @@
+﻿{
+  "actions": [
+    {
+      "action": "ExportItems",
+      "dumpFile": "wbdump.json",
+      "exportDirectory": "Export/Items",
+      "shards": 13,
+      "languages": ["zh-cn", "zh-tw", "zh-hans", "zh-hant", "zh", "en"]
+    }
+  ]
+}

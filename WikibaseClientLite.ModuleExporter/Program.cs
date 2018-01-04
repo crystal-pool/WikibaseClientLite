@@ -1,12 +1,82 @@
 ﻿using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
+using Serilog;
+using Serilog.Core;
+using WikibaseClientLite.ModuleExporter.CommandLine;
+using WikibaseClientLite.ModuleExporter.Schema;
 
 namespace WikibaseClientLite.ModuleExporter
 {
-    class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+
+        private static Logger logger;
+
+        private static readonly JsonSerializer jsonSerializer = new JsonSerializer
         {
-            Console.WriteLine("Hello World!");
+            ContractResolver = new CamelCasePropertyNamesContractResolver()
+        };
+
+        static async Task<int> Main(string[] rawArgs)
+        {
+            var args = new CommandArguments(rawArgs.Select(CommandLineParser.ParseArgument));
+            if ((bool?)args["help"] ?? (bool?)args["h"] ?? (bool?)args["?"] ?? false)
+            {
+                ShowHelp();
+                return 1;
+            }
+            var tasksFileName = (string)args[0];
+            if (string.IsNullOrWhiteSpace(tasksFileName))
+            {
+                tasksFileName = Path.GetFullPath("tasks.json");
+                if (!File.Exists(tasksFileName))
+                {
+                    Console.Error.WriteLine("Cannot find tasks.json in the current directory.");
+                    ShowHelp();
+                    return 1;
+                }
+            }
+            var loggerConfig = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .WriteTo.Console();
+            if ((bool?)args["v"] ?? false) loggerConfig.MinimumLevel.Verbose();
+            logger = loggerConfig.CreateLogger();
+            var config = LoadTasksConfig(tasksFileName);
+            var dispatcher = new TaskActionDispatcher(logger);
+            foreach (var action in config.Actions)
+            {
+                await dispatcher.DispatchAction_(action);
+            }
+            return 0;
         }
+
+        private static TasksConfig LoadTasksConfig(string fileName)
+        {
+            using (var reader = File.OpenText(fileName))
+            using (var jreader = new JsonTextReader(reader))
+            {
+                return jsonSerializer.Deserialize<TasksConfig>(jreader);
+            }
+        }
+
+        private static void ShowHelp()
+        {
+            Console.WriteLine(@"WikibaseClientLite.ModuleExporter
+
+Usage
+    wbclexport [TaskConfigurationFile] [-v]
+
+where
+    TaskConfigurationFile   the path of JSON configuration file defining the actions to be executed;
+                                the default value is ./tasks.json
+    -v                      show verbose log
+");
+        }
+
     }
 }
