@@ -2,7 +2,7 @@
 
 # WikibaseClientLite
 
-This WIP repostiroy contains WikibaseClientLite, an attempt to simulate (a subset of) [Wikibase Client Lua API](https://www.mediawiki.org/wiki/Extension:Wikibase_Client/Lua) on MediaWiki sites without Wikibase extensions. Especially the target MedaiWiki site may retrieve the item information from a LUA-table-based snapshot without direct depenency to Wikibase repository database or Wikibase client extension.
+This WIP repostiroy contains WikibaseClientLite, an attempt to simulate (a subset of) [Wikibase Client Lua API](https://www.mediawiki.org/wiki/Extension:Wikibase_Client/Lua) on MediaWiki sites without Wikibase extensions based on a Wikibase items dump. Especially the target MedaiWiki site may retrieve the item information from a LUA-table-based snapshot without direct depenency to Wikibase repository database or Wikibase client extension.
 
 ## WikibaseClientLite.ModuleExporter
 

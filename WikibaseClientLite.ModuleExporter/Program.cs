@@ -47,10 +47,13 @@ namespace WikibaseClientLite.ModuleExporter
             if ((bool?)args["v"] ?? false) loggerConfig.MinimumLevel.Verbose();
             logger = loggerConfig.CreateLogger();
             var config = LoadTasksConfig(tasksFileName);
-            var dispatcher = new TaskActionDispatcher(logger);
-            foreach (var action in config.Actions)
+            using (var siteProvider = new WikiSiteProvider(config.MwSites ?? Enumerable.Empty<MwSite>(), logger))
             {
-                await dispatcher.DispatchAction_(action);
+                var dispatcher = new TaskActionDispatcher(logger, siteProvider);
+                foreach (var action in config.Actions)
+                {
+                    await dispatcher.DispatchAction_(action);
+                }
             }
             return 0;
         }

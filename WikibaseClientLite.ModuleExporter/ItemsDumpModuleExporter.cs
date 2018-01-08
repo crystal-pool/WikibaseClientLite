@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Serilog;
 using WikibaseClientLite.ModuleExporter.ObjectModel;
 using WikiClientLibrary.Wikibase;
 using WikiClientLibrary.Wikibase.DataTypes;
@@ -16,6 +18,11 @@ namespace WikibaseClientLite.ModuleExporter
     {
         private int _Shards = 13;
         private static readonly string[] defaultLanguages = { "en-us", "en" };
+
+        public ItemsDumpModuleExporter(ILogger logger)
+        {
+            Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
 
         /// <summary>
         /// Number of shards.
@@ -31,6 +38,8 @@ namespace WikibaseClientLite.ModuleExporter
         }
 
         public IList<string> Languages { get; set; }
+
+        public ILogger Logger { get; }
 
         private void WriteProlog(ILuaModule module, int shard)
         {
@@ -83,6 +92,7 @@ namespace WikibaseClientLite.ModuleExporter
             }).ToList();
             try
             {
+                int items = 0, properties = 0;
                 var isFirstEntity = new BitArray(_Shards, true);
                 using (var jreader = new JsonTextReader(itemsDumpReader))
                 {
@@ -93,6 +103,8 @@ namespace WikibaseClientLite.ModuleExporter
                         {
                             if (jreader.TokenType != JsonToken.StartObject) throw new JsonException("Expect StartObject token.");
                             var entity = SerializableEntity.Load(jreader);
+                            if (entity.Type == EntityType.Item) items++;
+                            else if (entity.Type == EntityType.Property) properties++;
                             var shardIndex = Utility.HashItemId(entity.Id) % _Shards;
                             var shard = shards[shardIndex];
                             entity.Labels = FilterMonolingualTexts(entity.Labels, languages);
@@ -110,8 +122,10 @@ namespace WikibaseClientLite.ModuleExporter
                         }
                     }
                 }
+                Logger.Information("Exported LUA modules for {Items} items and {Properties} properties.", items, properties);
                 for (var i = 0; i < shards.Count; i++)
                 {
+                    Logger.Information("Submitting shard: {Current}/{Total}.", i + 1, _Shards);
                     WriteEpilog(shards[i]);
                     await shards[i].SubmitAsync($"Export Wikibase items. Shard {i + 1}/{_Shards}");
                 }

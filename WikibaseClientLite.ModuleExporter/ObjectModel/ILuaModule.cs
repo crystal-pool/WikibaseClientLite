@@ -23,6 +23,16 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
         {
             module.AppendLine(null);
         }
-        
+
+        public static void Append(this ILuaModule module, string format, params object[] args)
+        {
+            module.Append(string.Format(format, args));
+        }
+
+        public static void AppendLine(this ILuaModule module, string format, params object[] args)
+        {
+            module.AppendLine(string.Format(format, args));
+        }
+
     }
 }

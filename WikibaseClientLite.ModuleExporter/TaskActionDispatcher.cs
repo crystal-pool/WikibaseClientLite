@@ -12,11 +12,13 @@ namespace WikibaseClientLite.ModuleExporter
     {
 
         private readonly ILogger rootLogger;
+        private readonly WikiSiteProvider mwSiteProvider;
         private ILogger logger;
 
-        public TaskActionDispatcher(ILogger rootLogger)
+        public TaskActionDispatcher(ILogger rootLogger, WikiSiteProvider mwSiteProvider)
         {
             this.rootLogger = rootLogger ?? throw new ArgumentNullException(nameof(rootLogger));
+            this.mwSiteProvider = mwSiteProvider;
         }
 
         public async Task DispatchAction_(JObject options)

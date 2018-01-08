@@ -14,7 +14,7 @@ namespace WikibaseClientLite.ModuleExporter
         public async Task ExportItemsAction(JObject options)
         {
             var sourceDump = (string)options["dumpFile"];
-            var exporter = new ItemsDumpModuleExporter
+            var exporter = new ItemsDumpModuleExporter(logger)
             {
                 Languages = options["languages"]?.ToObject<IList<string>>(),
                 Shards = (int?)options["shards"] ?? 1,
@@ -23,6 +23,15 @@ namespace WikibaseClientLite.ModuleExporter
             if (destDir != null)
             {
                 var mf = new FileSystemLuaModuleFactory(destDir);
+                using (var dumpReader = File.OpenText(sourceDump))
+                {
+                    await exporter.ExportItemsAsync(dumpReader, mf);
+                }
+            }
+            var destSite = (string)options["exportSite"];
+            if (destSite != null)
+            {
+                var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetWikiSiteAsync(destSite), (string)options["exportSitePrefix"]);
                 using (var dumpReader = File.OpenText(sourceDump))
                 {
                     await exporter.ExportItemsAsync(dumpReader, mf);
