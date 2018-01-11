@@ -34,24 +34,20 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
                 FileName = fileName;
             }
 
-            public string FileName { get; set; }
-
-            public void Append(string content)
-            {
-                if (writer == null) writer = File.CreateText(FileName);
-                writer.Write(content);
-            }
+            public string FileName { get; }
 
             /// <inheritdoc />
-            public void AppendLine(string content)
+            public TextWriter GetWriter()
             {
                 if (writer == null) writer = File.CreateText(FileName);
-                writer.WriteLine(content);
+                return writer;
             }
 
             /// <inheritdoc />
             public Task SubmitAsync(string editSummary)
             {
+                writer.Close();
+                writer = File.AppendText(FileName);
                 writer.WriteLine();
                 writer.Write("-- Summary: ");
                 writer.WriteLine(editSummary);

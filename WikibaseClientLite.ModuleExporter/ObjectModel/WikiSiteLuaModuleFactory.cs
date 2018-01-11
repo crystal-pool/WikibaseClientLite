@@ -32,7 +32,53 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
         public override ILuaModule GetModule(string title)
         {
             var page = new WikiPage(Site, TitlePrefix + title);
-            return new LuaModule(page);
+            // return new LuaModule(page);
+            return new MemoryBufferedLuaModule(page);
+        }
+
+        private sealed class MemoryBufferedLuaModule : ILuaModule
+        {
+
+            private readonly WikiPage page;
+            private readonly StringBuilder sb = new StringBuilder();
+            private TextWriter writer;
+
+            public MemoryBufferedLuaModule(WikiPage page)
+            {
+                Debug.Assert(page != null);
+                this.page = page;
+            }
+
+            /// <inheritdoc />
+            public void Dispose()
+            {
+                writer?.Dispose();
+                writer = null;
+                sb.Clear();
+            }
+
+            /// <inheritdoc />
+            public TextWriter GetWriter()
+            {
+                if (writer == null) writer = new StringWriter(sb);
+                return writer;
+            }
+
+            /// <inheritdoc />
+            public async Task SubmitAsync(string editSummary)
+            {
+                if (writer == null)
+                {
+                    page.Content = "";
+                }
+                else
+                {
+                    writer.Close();
+                    writer = null;
+                    page.Content = sb.ToString();
+                }
+                await page.UpdateContentAsync(editSummary, false, true);
+            }
         }
 
         private sealed class LuaModule : ILuaModule
@@ -68,17 +114,10 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
             }
 
             /// <inheritdoc />
-            public void Append(string content)
+            public TextWriter GetWriter()
             {
                 EnsureWriter();
-                tempWriter.Write(content);
-            }
-
-            /// <inheritdoc />
-            public void AppendLine(string content)
-            {
-                EnsureWriter();
-                tempWriter.WriteLine(content);
+                return tempWriter;
             }
 
             /// <inheritdoc />
