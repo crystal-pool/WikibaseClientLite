@@ -37,10 +37,13 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
             public string FileName { get; }
 
             /// <inheritdoc />
-            public TextWriter GetWriter()
+            public TextWriter Writer
             {
-                if (writer == null) writer = File.CreateText(FileName);
-                return writer;
+                get
+                {
+                    if (writer == null) writer = File.CreateText(FileName);
+                    return writer;
+                }
             }
 
             /// <inheritdoc />

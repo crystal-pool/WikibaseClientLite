@@ -8,8 +8,7 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
 {
     public interface ILuaModule : IDisposable
     {
-
-        TextWriter GetWriter();
+        TextWriter Writer { get; }
 
         Task SubmitAsync(string editSummary);
 

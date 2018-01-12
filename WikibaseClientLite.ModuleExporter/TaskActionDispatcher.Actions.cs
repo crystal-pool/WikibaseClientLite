@@ -17,7 +17,6 @@ namespace WikibaseClientLite.ModuleExporter
             var exporter = new ItemsDumpModuleExporter(logger)
             {
                 Languages = options["languages"]?.ToObject<IList<string>>(),
-                Shards = (int?)options["shards"] ?? 1,
             };
             var destDir = (string)options["exportDirectory"];
             if (destDir != null)
@@ -35,6 +34,34 @@ namespace WikibaseClientLite.ModuleExporter
                 using (var dumpReader = File.OpenText(sourceDump))
                 {
                     await exporter.ExportItemsAsync(dumpReader, mf);
+                }
+            }
+        }
+
+        public async Task ExportSiteLinksAction(JObject options)
+        {
+            var sourceDump = (string)options["dumpFile"];
+            var exporter = new ItemsDumpModuleExporter(logger)
+            {
+                ClientSiteName = (string)options["clientSiteName"]
+            };
+            var shards = (int?)options["shards"] ?? 1;
+            var destDir = (string)options["exportDirectory"];
+            if (destDir != null)
+            {
+                var mf = new FileSystemLuaModuleFactory(destDir);
+                using (var dumpReader = File.OpenText(sourceDump))
+                {
+                    await exporter.ExportSiteLinksAsync(dumpReader, mf, shards);
+                }
+            }
+            var destSite = (string)options["exportSite"];
+            if (destSite != null)
+            {
+                var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetWikiSiteAsync(destSite), (string)options["exportSitePrefix"]);
+                using (var dumpReader = File.OpenText(sourceDump))
+                {
+                    await exporter.ExportSiteLinksAsync(dumpReader, mf, shards);
                 }
             }
         }

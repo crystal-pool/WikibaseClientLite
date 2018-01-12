@@ -58,10 +58,13 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
             }
 
             /// <inheritdoc />
-            public TextWriter GetWriter()
+            public TextWriter Writer
             {
-                if (writer == null) writer = new StringWriter(sb);
-                return writer;
+                get
+                {
+                    if (writer == null) writer = new StringWriter(sb);
+                    return writer;
+                }
             }
 
             /// <inheritdoc />
@@ -114,10 +117,13 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
             }
 
             /// <inheritdoc />
-            public TextWriter GetWriter()
+            public TextWriter Writer
             {
-                EnsureWriter();
-                return tempWriter;
+                get
+                {
+                    EnsureWriter();
+                    return tempWriter;
+                }
             }
 
             /// <inheritdoc />

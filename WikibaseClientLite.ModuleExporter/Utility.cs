@@ -19,5 +19,13 @@ namespace WikibaseClientLite.ModuleExporter
             return HashItemId(id[0], Convert.ToInt32(id.Substring(1)));
         }
 
+        public static int HashString(string s)
+        {
+            const int M = 11126858;
+            var hash = 1;
+            foreach (var c in s) hash = (hash % M) * 193 + c;
+            return hash;
+        }
+
     }
 }

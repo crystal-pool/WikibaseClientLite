@@ -24,6 +24,11 @@ namespace WikibaseClientLite.ModuleExporter
         public async Task DispatchAction_(JObject options)
         {
             var actionName = (string)options["action"];
+            if ((bool?)options["disabled"] ?? false)
+            {
+                rootLogger.Debug("Skipped action: {Task}", actionName);
+                return;
+            }
             rootLogger.Information("Starting action: {Task}", actionName);
             // TODO use action name.
             logger = rootLogger.ForContext<TaskActionDispatcher>();
