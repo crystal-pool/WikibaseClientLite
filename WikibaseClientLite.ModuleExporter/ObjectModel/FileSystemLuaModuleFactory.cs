@@ -24,6 +24,12 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
             return new LuaModule(Path.Combine(RootPath, title + ".lua"));
         }
 
+        /// <inheritdoc />
+        public override Task ShutdownAsync()
+        {
+            return Task.CompletedTask;
+        }
+
         private sealed class LuaModule : ILuaModule
         {
 

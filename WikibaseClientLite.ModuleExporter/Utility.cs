@@ -27,5 +27,12 @@ namespace WikibaseClientLite.ModuleExporter
             return hash;
         }
 
+        public static string BytesToHexString(byte[] bytes)
+        {
+            var sb = new StringBuilder(bytes.Length * 2);
+            foreach (var b in bytes) sb.Append(b.ToString("X2"));
+            return sb.ToString();
+        }
+
     }
 }

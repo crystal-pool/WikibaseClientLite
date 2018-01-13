@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -55,6 +56,12 @@ namespace WikibaseClientLite.ModuleExporter
                     await dispatcher.DispatchAction_(action);
                 }
             }
+
+            using (var proc = Process.GetCurrentProcess())
+            {
+                logger.Information("Peak working set = {PeakWS:0.00}MB", proc.PeakWorkingSet64 / 1024.0 / 1024.0);
+            }
+
             return 0;
         }
 

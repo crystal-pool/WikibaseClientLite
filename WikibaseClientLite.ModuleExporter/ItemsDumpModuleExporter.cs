@@ -21,7 +21,7 @@ namespace WikibaseClientLite.ModuleExporter
     public class ItemsDumpModuleExporter
     {
 
-        private static readonly string[] defaultLanguages = { "en-us", "en" };
+        private static readonly string[] defaultLanguages = {"en-us", "en"};
 
         public ItemsDumpModuleExporter(ILogger logger)
         {
@@ -59,6 +59,7 @@ namespace WikibaseClientLite.ModuleExporter
             {
                 c[l] = collection[l];
             }
+
             return c;
         }
 
@@ -69,6 +70,7 @@ namespace WikibaseClientLite.ModuleExporter
             {
                 c[l] = collection[l];
             }
+
             return c;
         }
 
@@ -78,45 +80,40 @@ namespace WikibaseClientLite.ModuleExporter
             if (moduleFactory == null) throw new ArgumentNullException(nameof(moduleFactory));
             var languages = new List<string>(Languages ?? defaultLanguages);
             int items = 0, properties = 0;
-            using (var jreader = new JsonTextReader(itemsDumpReader))
+            foreach (var entity in SerializableEntity.LoadAll(itemsDumpReader))
             {
-                if (jreader.Read())
+                if (entity.Type == EntityType.Item) items++;
+                else if (entity.Type == EntityType.Property)
+                    properties++;
+
+                // Preprocess
+                entity.Labels = FilterMonolingualTexts(entity.Labels, languages);
+                entity.Descriptions = FilterMonolingualTexts(entity.Descriptions, languages);
+                entity.Aliases = FilterMonolingualTexts(entity.Aliases, languages);
+
+                // Persist
+                using (var module = moduleFactory.GetModule(entity.Id))
                 {
-                    if (jreader.TokenType != JsonToken.StartArray) throw new JsonException("Expect StartArray token.");
-                    while (jreader.Read() && jreader.TokenType != JsonToken.EndArray)
+                    using (var writer = module.Writer)
                     {
-                        if (jreader.TokenType != JsonToken.StartObject) throw new JsonException("Expect StartObject token.");
-                        var entity = SerializableEntity.Load(jreader);
-                        if (entity.Type == EntityType.Item) items++;
-                        else if (entity.Type == EntityType.Property)
-                            properties++;
-
-                        // Preprocess
-                        entity.Labels = FilterMonolingualTexts(entity.Labels, languages);
-                        entity.Descriptions = FilterMonolingualTexts(entity.Descriptions, languages);
-                        entity.Aliases = FilterMonolingualTexts(entity.Aliases, languages);
-
-                        // Persist
-                        using (var module = moduleFactory.GetModule(entity.Id))
+                        WriteProlog(writer, $"Entity: {entity.Id} ({entity.Labels["en"]})");
+                        using (var luawriter = new JsonLuaWriter(writer) {CloseOutput = false})
                         {
-                            using (var writer = module.Writer)
-                            {
-                                WriteProlog(writer, $"Entity: {entity.Id} ({entity.Labels["en"]})");
-                                using (var luawriter = new JsonLuaWriter(writer) {CloseOutput = false})
-                                {
-                                    entity.WriteTo(luawriter);
-                                }
-
-                                WriteEpilog(writer);
-                            }
-
-                            await module.SubmitAsync($"Export entity {entity.Id}.");
+                            entity.WriteTo(luawriter);
                         }
 
-                        Logger.Information("Exported LUA modules for {Items} items and {Properties} properties.", items, properties);
+                        WriteEpilog(writer);
                     }
+
+                    await module.SubmitAsync($"Export entity {entity.Id}.");
+                }
+
+                if ((items + properties) % 500 == 0)
+                {
+                    Logger.Information("Exported LUA modules for {Items} items and {Properties} properties.", items, properties);
                 }
             }
+            Logger.Information("Exported LUA modules for {Items} items and {Properties} properties.", items, properties);
         }
 
         public async Task ExportSiteLinksAsync(TextReader itemsDumpReader, LuaModuleFactory moduleFactory, int shardCount)
@@ -156,10 +153,9 @@ namespace WikibaseClientLite.ModuleExporter
                         }
                     }
                 }
-                Logger.Information("Exported LUA modules…");
+                Logger.Information("Exporting LUA modules. Shards = {Shards}", shards.Count);
                 for (var i = 0; i < shards.Count; i++)
                 {
-                    Logger.Information("Submitting shard: {Current}/{Total}.", i + 1, shards.Count);
                     shardLuaWriters[i].WriteEndTable();
                     shardLuaWriters[i].Close();
                     WriteEpilog(shards[i].Writer);

@@ -49,7 +49,7 @@ namespace WikibaseClientLite.ModuleExporter
                     {
                         s = new WikiSite(wikiClient, config.ApiEndpoint);
                     }
-
+                    s.ModificationThrottler.ThrottleTime = TimeSpan.FromSeconds(0.1);
                     s.Logger = loggerAdapter.CreateLogger(name);
                     return s;
                 });

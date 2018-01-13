@@ -21,19 +21,22 @@ namespace WikibaseClientLite.ModuleExporter
             var destDir = (string)options["exportDirectory"];
             if (destDir != null)
             {
-                var mf = new FileSystemLuaModuleFactory(destDir);
+                using (var mf = new FileSystemLuaModuleFactory(destDir))
                 using (var dumpReader = File.OpenText(sourceDump))
                 {
                     await exporter.ExportItemsAsync(dumpReader, mf);
+                    await mf.ShutdownAsync();
                 }
             }
             var destSite = (string)options["exportSite"];
             if (destSite != null)
             {
-                var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetWikiSiteAsync(destSite), (string)options["exportSitePrefix"]);
+                using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetWikiSiteAsync(destSite),
+                    (string)options["exportSitePrefix"], logger))
                 using (var dumpReader = File.OpenText(sourceDump))
                 {
                     await exporter.ExportItemsAsync(dumpReader, mf);
+                    await mf.ShutdownAsync();
                 }
             }
         }
@@ -49,19 +52,22 @@ namespace WikibaseClientLite.ModuleExporter
             var destDir = (string)options["exportDirectory"];
             if (destDir != null)
             {
-                var mf = new FileSystemLuaModuleFactory(destDir);
+                using (var mf = new FileSystemLuaModuleFactory(destDir))
                 using (var dumpReader = File.OpenText(sourceDump))
                 {
                     await exporter.ExportSiteLinksAsync(dumpReader, mf, shards);
+                    await mf.ShutdownAsync();
                 }
             }
             var destSite = (string)options["exportSite"];
             if (destSite != null)
             {
-                var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetWikiSiteAsync(destSite), (string)options["exportSitePrefix"]);
+                using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetWikiSiteAsync(destSite),
+                    (string)options["exportSitePrefix"], logger))
                 using (var dumpReader = File.OpenText(sourceDump))
                 {
                     await exporter.ExportSiteLinksAsync(dumpReader, mf, shards);
+                    await mf.ShutdownAsync();
                 }
             }
         }
