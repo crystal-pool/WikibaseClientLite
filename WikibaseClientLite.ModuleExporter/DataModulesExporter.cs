@@ -135,24 +135,16 @@ namespace WikibaseClientLite.ModuleExporter
             foreach (var writer in shardLuaWriters) writer.WriteStartTable();
             try
             {
-                using (var jreader = new JsonTextReader(itemsDumpReader))
+                foreach (var entity in SerializableEntity.LoadAll(itemsDumpReader))
                 {
-                    if (jreader.Read())
-                    {
-                        if (jreader.TokenType != JsonToken.StartArray) throw new JsonException("Expect StartArray token.");
-                        while (jreader.Read() && jreader.TokenType != JsonToken.EndArray)
-                        {
-                            if (jreader.TokenType != JsonToken.StartObject) throw new JsonException("Expect StartObject token.");
-                            var entity = SerializableEntity.Load(jreader);
-                            var siteLink = entity.SiteLinks.FirstOrDefault(l => l.Site == ClientSiteName);
-                            if (siteLink == null) continue;
-                            var shardIndex = Utility.HashString(siteLink.Title) % shardCount;
-                            var writer = shardLuaWriters[shardIndex];
-                            writer.WriteKey(siteLink.Title);
-                            writer.WriteLiteral(entity.Id);
-                        }
-                    }
+                    var siteLink = entity.SiteLinks.FirstOrDefault(l => l.Site == ClientSiteName);
+                    if (siteLink == null) continue;
+                    var shardIndex = Utility.HashString(siteLink.Title) % shardCount;
+                    var writer = shardLuaWriters[shardIndex];
+                    writer.WriteKey(siteLink.Title);
+                    writer.WriteLiteral(entity.Id);
                 }
+
                 Logger.Information("Exporting LUA modules. Shards = {Shards}", shards.Count);
                 for (var i = 0; i < shards.Count; i++)
                 {
