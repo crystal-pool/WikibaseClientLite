@@ -14,7 +14,7 @@ namespace WikibaseClientLite.ModuleExporter
         public async Task ExportItemsAction(JObject options)
         {
             var sourceDump = (string)options["dumpFile"];
-            var exporter = new ItemsDumpModuleExporter(logger)
+            var exporter = new DataModulesExporter(logger)
             {
                 Languages = options["languages"]?.ToObject<IList<string>>(),
             };
@@ -44,7 +44,7 @@ namespace WikibaseClientLite.ModuleExporter
         public async Task ExportSiteLinksAction(JObject options)
         {
             var sourceDump = (string)options["dumpFile"];
-            var exporter = new ItemsDumpModuleExporter(logger)
+            var exporter = new DataModulesExporter(logger)
             {
                 ClientSiteName = (string)options["clientSiteName"]
             };

@@ -18,12 +18,12 @@ using Formatting = Luaon.Formatting;
 
 namespace WikibaseClientLite.ModuleExporter
 {
-    public class ItemsDumpModuleExporter
+    public class DataModulesExporter
     {
 
         private static readonly string[] defaultLanguages = {"en-us", "en"};
 
-        public ItemsDumpModuleExporter(ILogger logger)
+        public DataModulesExporter(ILogger logger)
         {
             Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
