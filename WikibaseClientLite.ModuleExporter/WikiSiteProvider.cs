@@ -12,7 +12,7 @@ using WikiClientLibrary.Sites;
 
 namespace WikibaseClientLite.ModuleExporter
 {
-    public class WikiSiteProvider : IDisposable
+    public class WikiSiteProvider : IDisposable, IWikiFamily
     {
 
         private readonly List<MwSite> siteConfig;
@@ -27,11 +27,11 @@ namespace WikibaseClientLite.ModuleExporter
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.siteConfig = siteConfig.ToList();
             wikiClient = new WikiClient();
-            sitesCacheDict = new ConcurrentDictionary<string, WikiSite>();
+            sitesCacheDict = new ConcurrentDictionary<string, WikiSite>(StringComparer.InvariantCultureIgnoreCase);
             loggerAdapter = new SerilogLoggerProvider(logger);
         }
 
-        public async Task<WikiSite> GetWikiSiteAsync(string name)
+        public async Task<WikiSite> GetSiteAsync(string name)
         {
             if (!sitesCacheDict.TryGetValue(name, out var site))
             {
@@ -58,6 +58,17 @@ namespace WikibaseClientLite.ModuleExporter
             await site.Initialization;
             return site;
         }
+
+        /// <inheritdoc />
+        public string TryNormalize(string prefix)
+        {
+            return siteConfig
+                .FirstOrDefault(c => string.Equals(c.Name, prefix, StringComparison.InvariantCultureIgnoreCase))
+                ?.Name;
+        }
+
+        /// <inheritdoc />
+        public string Name { get; }
 
         /// <inheritdoc />
         public void Dispose()

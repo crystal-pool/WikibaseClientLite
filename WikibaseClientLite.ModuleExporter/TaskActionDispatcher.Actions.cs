@@ -3,8 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
+using VDS.RDF;
+using VDS.RDF.Query.Datasets;
 using WikibaseClientLite.ModuleExporter.ObjectModel;
+using WikibaseClientLite.ModuleExporter.Sparql;
+using WikibaseClientLite.ModuleExporter.Tasks;
 
 namespace WikibaseClientLite.ModuleExporter
 {
@@ -31,7 +37,7 @@ namespace WikibaseClientLite.ModuleExporter
             var destSite = (string)options["exportSite"];
             if (destSite != null)
             {
-                using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetWikiSiteAsync(destSite),
+                using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetSiteAsync(destSite),
                     (string)options["exportSitePrefix"], logger))
                 using (var dumpReader = File.OpenText(sourceDump))
                 {
@@ -62,13 +68,43 @@ namespace WikibaseClientLite.ModuleExporter
             var destSite = (string)options["exportSite"];
             if (destSite != null)
             {
-                using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetWikiSiteAsync(destSite),
+                using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetSiteAsync(destSite),
                     (string)options["exportSitePrefix"], logger))
                 using (var dumpReader = File.OpenText(sourceDump))
                 {
                     await exporter.ExportSiteLinksAsync(dumpReader, mf, shards);
                     await mf.ShutdownAsync();
                 }
+            }
+        }
+
+        public async Task ExecuteAotSparqlAction(AotSparqlOptions options)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+            using (var moduleFactory = await OptionUtility.CreateExportModuleFactoryAsync(options.ExportModulePrefix, mwSiteProvider, logger))
+            using (var graph = new Graph())
+            {
+                graph.LoadFromFile(options.DumpFile);
+                logger.Information("Loaded {Count} triples.", graph.Triples.Count);
+                var dataset = new InMemoryDataset(graph);
+                var executor = new AotSparqlExecutor(dataset, graph.NamespaceMap, uri =>
+                {
+                    if (graph.NamespaceMap.ReduceToQName(uri.ToString(), out var qname))
+                    {
+                        // Remove prefix for local entities.
+                        if (qname.StartsWith("wd:", StringComparison.OrdinalIgnoreCase))
+                            return qname.Substring(3);
+                        return qname;
+                    }
+                    throw new InvalidOperationException($"Cannot reduce {uri} into its QName.");
+                });
+                var exporter = new AotSparqlModuleExporter(logger, moduleFactory, executor);
+                {
+                    var (configSite, configModule) = await OptionUtility.ResolveSiteAndTitleAsync(options.ConfigModule, mwSiteProvider);
+                    await exporter.LoadConfigFromModuleAsync(configSite, configModule);
+                    logger.Information("Loaded config from {Module}.", options.ConfigModule);
+                }
+                await exporter.ExportModulesAsync();
             }
         }
 
