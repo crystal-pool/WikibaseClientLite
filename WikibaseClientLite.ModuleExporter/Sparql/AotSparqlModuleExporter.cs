@@ -14,7 +14,6 @@ using VDS.RDF;
 using VDS.RDF.Nodes;
 using WikibaseClientLite.ModuleExporter.ObjectModel;
 using WikibaseClientLite.ModuleExporter.Sparql.Contracts;
-using WikiClientLibrary;
 using WikiClientLibrary.Scribunto;
 using WikiClientLibrary.Sites;
 
@@ -25,9 +24,8 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
 
         private readonly LuaModuleFactory moduleFactory;
         private readonly AotSparqlExecutor executor;
-        private readonly Dictionary<string, QueryResultCluster> clusteredModules = new Dictionary<string, QueryResultCluster>();
 
-        private static readonly JsonSerializer siteConfigSerializer = new JsonSerializer
+        private static readonly JsonSerializer luaModuleJsonSerializer = new JsonSerializer
         {
             ContractResolver = new CamelCasePropertyNamesContractResolver()
         };
@@ -47,7 +45,7 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
         {
             if (site == null) throw new ArgumentNullException(nameof(site));
             if (moduleName == null) throw new ArgumentNullException(nameof(moduleName));
-            var config = await site.ScribuntoLoadDataAsync<AotSparqlSiteConfig>(moduleName, siteConfigSerializer);
+            var config = await site.ScribuntoLoadDataAsync<AotSparqlSiteConfig>(moduleName, luaModuleJsonSerializer);
             Logger.Information("Loaded config from {Site}. Queries count: {QueriesCount}.", site, config.Queries.Count);
             SiteConfig = config;
         }
@@ -65,16 +63,6 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 default:
                     throw new NotSupportedException($"Clustering by {clusterKey.NodeType} is not supported.");
             }
-        }
-
-        private QueryResultCluster GetClusteredModule(string clusterKey)
-        {
-            if (!clusteredModules.TryGetValue(clusterKey, out var cluster))
-            {
-                cluster = new QueryResultCluster(moduleFactory.GetModule(clusterKey));
-                clusteredModules.Add(clusterKey, cluster);
-            }
-            return cluster;
         }
 
         private void WriteParamValue(INode node, JsonWriter writer)
@@ -113,11 +101,6 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
             writer.WriteLine();
             writer.WriteLine("return data");
         }
-
-        private static readonly JsonSerializer jSerializer = new JsonSerializer
-        {
-            ContractResolver = new CamelCasePropertyNamesContractResolver()
-        };
 
         public async Task ExportModulesAsync()
         {
@@ -207,27 +190,12 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                     WriteProlog(module.Writer, "Cluster key: " + name);
                     using (var jwriter = new JsonLuaWriter(module.Writer) { CloseOutput = false })
                     {
-                        jSerializer.Serialize(jwriter, root);
+                        luaModuleJsonSerializer.Serialize(jwriter, root);
                     }
                     WriteEpilog(module.Writer);
                     await module.SubmitAsync("Export clustered SPARQL query result for " + name + ".");
                 }
             }
-        }
-
-        private class QueryResultCluster
-        {
-
-            public QueryResultCluster(ILuaModule module)
-            {
-                Module = module;
-                Writer = new JsonLuaWriter(module.Writer) { CloseOutput = false };
-            }
-
-            public ILuaModule Module { get; }
-
-            public JsonWriter Writer { get; }
-
         }
 
     }
