@@ -42,12 +42,20 @@ namespace WikibaseClientLite.ModuleExporter
                     return 1;
                 }
             }
-            var loggerConfig = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .WriteTo.Console();
+            var config = LoadTasksConfig(tasksFileName);
+            var loggerConfig = new LoggerConfiguration();
+            if (config.Logging != null)
+            {
+                loggerConfig.ReadFrom.KeyValuePairs(config.Logging);
+            }
+            else
+            {
+                loggerConfig
+                    .MinimumLevel.Information()
+                    .WriteTo.Console();
+            }
             if ((bool?)args["v"] ?? false) loggerConfig.MinimumLevel.Verbose();
             logger = loggerConfig.CreateLogger();
-            var config = LoadTasksConfig(tasksFileName);
             using (var siteProvider = new WikiSiteProvider(config.MwSites ?? Enumerable.Empty<MwSite>(), logger))
             {
                 var dispatcher = new TaskActionDispatcher(logger, siteProvider);

@@ -16,8 +16,9 @@
   <ItemGroup>
     <PackageReference Include="CXuesong.Luaon" Version="0.2.2" />
     <PackageReference Include="CXuesong.Luaon.Json" Version="0.2.1" />
-    <PackageReference Include="CXuesong.MW.WikiClientLibrary" Version="0.7.0-int.2" />
+    <PackageReference Include="CXuesong.MW.WikiClientLibrary" Version="0.7.0-int.4" />
     <PackageReference Include="CXuesong.MW.WikiClientLibrary.Wikibase" Version="0.6.0" />
+    <PackageReference Include="CXuesong.Uel.Serilog.Sinks.Discord" Version="0.1.0" />
     <PackageReference Include="dotNetRDF" Version="2.2.0" />
     <PackageReference Include="Serilog" Version="2.8.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="2.0.4" />

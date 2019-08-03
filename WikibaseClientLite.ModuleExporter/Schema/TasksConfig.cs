@@ -11,6 +11,8 @@ namespace WikibaseClientLite.ModuleExporter.Schema
     public class TasksConfig
     {
 
+        public IDictionary<string, string> Logging { get; set; }
+
         public IList<JObject> Actions { get; set; }
 
         public IList<MwSite> MwSites { get; set; }
