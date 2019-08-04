@@ -1,11 +1,37 @@
 ﻿{
+  "logging": {
+    "minimum-level": "Information",
+    "using:Console": "Serilog.Sinks.Console",
+    "write-to:Console": "",
+    "using:Discord": "CXuesong.Uel.Serilog.Sinks.Discord"
+    // "write-to:DiscordWebhook.webhookId": "",
+    // "write-to:DiscordWebhook.webhookToken": ""
+  },
+  "mwSites": [
+    {
+      "name": "crystalpool",
+      "apiEndpoint": "https://crystalpool.cxuesong.com/api.php"
+    },
+    {
+      "name": "zhwarriorswiki",
+      "apiEndpoint": "https://warriors.huijiwiki.com/api.php"
+    }
+  ],
   "actions": [
     {
       "action": "ExportItems",
       "dumpFile": "wbdump.json",
       "exportDirectory": "Export/Items",
       "shards": 13,
-      "languages": ["zh-cn", "zh-tw", "zh-hans", "zh-hant", "zh", "en"]
+      "languages": [ "zh-cn", "zh-tw", "zh-hans", "zh-hant", "zh", "en" ],
+      "disabled": true
+    },
+    {
+      "action": "ExecuteAotSparql",
+      "dumpFile": "wbdump.ttl",
+      "configModule": "zhwarriorswiki:Module:WbClientLite/Config/SparqlAot",
+      "ExportModulePrefix": "local:Export/SparqlAot",
+      "disabled": true
     }
   ]
 }
