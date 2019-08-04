@@ -21,7 +21,7 @@ namespace WikibaseClientLite.ModuleExporter
     public class DataModulesExporter
     {
 
-        private static readonly string[] defaultLanguages = {"en-us", "en"};
+        private static readonly string[] defaultLanguages = { "en-us", "en" };
 
         public DataModulesExporter(ILogger logger)
         {
@@ -33,6 +33,8 @@ namespace WikibaseClientLite.ModuleExporter
         public IList<string> Languages { get; set; }
 
         public ILogger Logger { get; }
+
+        public TimeSpan StatusReportInterval { get; set; } = TimeSpan.FromSeconds(20);
 
         private void WriteProlog(TextWriter writer, string prologText)
         {
@@ -80,6 +82,7 @@ namespace WikibaseClientLite.ModuleExporter
             if (moduleFactory == null) throw new ArgumentNullException(nameof(moduleFactory));
             var languages = new List<string>(Languages ?? defaultLanguages);
             int items = 0, properties = 0;
+            var statusReportSw = Stopwatch.StartNew();
             foreach (var entity in SerializableEntity.LoadAll(itemsDumpReader))
             {
                 if (entity.Type == EntityType.Item) items++;
@@ -97,7 +100,7 @@ namespace WikibaseClientLite.ModuleExporter
                     using (var writer = module.Writer)
                     {
                         WriteProlog(writer, $"Entity: {entity.Id} ({entity.Labels["en"]})");
-                        using (var luawriter = new JsonLuaWriter(writer) {CloseOutput = false})
+                        using (var luawriter = new JsonLuaWriter(writer) { CloseOutput = false })
                         {
                             entity.WriteTo(luawriter);
                         }
@@ -108,8 +111,9 @@ namespace WikibaseClientLite.ModuleExporter
                     await module.SubmitAsync($"Export entity {entity.Id}.");
                 }
 
-                if ((items + properties) % 500 == 0)
+                if (statusReportSw.Elapsed > StatusReportInterval)
                 {
+                    statusReportSw.Restart();
                     Logger.Information("Exported LUA modules for {Items} items and {Properties} properties.", items, properties);
                 }
             }
@@ -122,7 +126,7 @@ namespace WikibaseClientLite.ModuleExporter
             if (moduleFactory == null) throw new ArgumentNullException(nameof(moduleFactory));
             if (shardCount <= 0) throw new ArgumentOutOfRangeException(nameof(shardCount));
             if (ClientSiteName == null) throw new ArgumentNullException(nameof(ClientSiteName));
-            
+
             var shards = Enumerable.Range(0, shardCount).Select(index =>
             {
                 var module = moduleFactory.GetModule(index.ToString());
@@ -130,7 +134,7 @@ namespace WikibaseClientLite.ModuleExporter
                 return module;
             }).ToList();
             var shardLuaWriters = shards.Select(m =>
-                new LuaTableTextWriter(m.Writer) {CloseWriter = false, Formatting = Formatting.Prettified})
+                new LuaTableTextWriter(m.Writer) { CloseWriter = false, Formatting = Formatting.Prettified })
                 .ToList();
             foreach (var writer in shardLuaWriters) writer.WriteStartTable();
             try
