@@ -109,7 +109,7 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 var colIndex = 0;
                 foreach (var varName in resultVariables)
                 {
-                    resultRow[colIndex] = SerializeNode(row.Value(varName));
+                    resultRow[colIndex] = row.HasBoundValue(varName) ? SerializeNode(row.Value(varName)) : null;
                     colIndex++;
                 }
                 resultRows.Add(resultRow);

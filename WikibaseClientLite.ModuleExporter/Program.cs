@@ -56,20 +56,28 @@ namespace WikibaseClientLite.ModuleExporter
             }
             if ((bool?)args["v"] ?? false) loggerConfig.MinimumLevel.Verbose();
             logger = loggerConfig.CreateLogger();
-            using (var siteProvider = new WikiSiteProvider(config.MwSites ?? Enumerable.Empty<MwSite>(), logger))
+            try
             {
-                var dispatcher = new TaskActionDispatcher(logger, siteProvider);
-                foreach (var action in config.Actions)
+                using (var siteProvider = new WikiSiteProvider(config.MwSites ?? Enumerable.Empty<MwSite>(), logger))
                 {
-                    await dispatcher.DispatchAction_(action);
+                    var dispatcher = new TaskActionDispatcher(logger, siteProvider);
+                    foreach (var action in config.Actions)
+                    {
+                        await dispatcher.DispatchAction_(action);
+                    }
                 }
-            }
 
-            using (var proc = Process.GetCurrentProcess())
+                using (var proc = Process.GetCurrentProcess())
+                {
+                    logger.Information("Peak working set = {PeakWS:0.00}MB", proc.PeakWorkingSet64 / 1024.0 / 1024.0);
+                }
+
+            }
+            finally
             {
-                logger.Information("Peak working set = {PeakWS:0.00}MB", proc.PeakWorkingSet64 / 1024.0 / 1024.0);
+                // We don't want to lose logs on Discord.
+                logger.Dispose();
             }
-
             return 0;
         }
 
