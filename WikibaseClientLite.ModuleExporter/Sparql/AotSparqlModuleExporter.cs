@@ -39,6 +39,8 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
 
         public ILogger Logger { get; }
 
+        public TimeSpan StatusReportInterval { get; set; } = TimeSpan.FromSeconds(30);
+
         public AotSparqlSiteConfig SiteConfig { get; set; }
 
         public async Task LoadConfigFromModuleAsync(WikiSite site, string moduleName)
@@ -183,6 +185,8 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 }
             }
             Logger.Information("Writing {Count} clustered modules…", clusterDict.Count);
+            var statusReportSw = Stopwatch.StartNew();
+            var writtenCount = 0;
             foreach (var (name, root) in clusterDict)
             {
                 using (var module = moduleFactory.GetModule(name))
@@ -194,8 +198,15 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                     }
                     WriteEpilog(module.Writer);
                     await module.SubmitAsync("Export clustered SPARQL query result for " + name + ".");
+                    writtenCount++;
+                    if (statusReportSw.Elapsed >= StatusReportInterval)
+                    {
+                        Logger.Information("Written {Count}/{Total} clustered modules.", writtenCount, clusterDict.Count);
+                    }
+                    statusReportSw.Restart();
                 }
             }
+            Logger.Information("Written {Count}/{Total} clustered modules.", writtenCount, clusterDict.Count);
         }
 
     }

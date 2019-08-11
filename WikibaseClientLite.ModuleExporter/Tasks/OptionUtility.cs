@@ -27,7 +27,7 @@ namespace WikibaseClientLite.ModuleExporter.Tasks
             {
                 return new FileSystemLuaModuleFactory(parts[1]);
             }
-            var site = await wikiFamily.GetSiteAsync(parts[1]);
+            var site = await wikiFamily.GetSiteAsync(parts[0]);
             return new WikiSiteLuaModuleFactory(site, parts[1], logger);
         }
 

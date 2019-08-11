@@ -73,6 +73,11 @@ namespace WikibaseClientLite.ModuleExporter
                 }
 
             }
+            catch (Exception ex)
+            {
+                logger.Error("Unhandled exception: {Message}.", ex.Message);
+                throw;
+            }
             finally
             {
                 // We don't want to lose logs on Discord.
