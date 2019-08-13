@@ -21,12 +21,17 @@ namespace WikibaseClientLite.ModuleExporter.Sparql.Contracts
     public class AotSparqlQueryResultSet
     {
 
-        private static readonly string[] emptyPivotParams = { };
+        private static readonly string[] emptyStrings = { };
 
         /// <summary>
         /// A list of pivot parameter names.
         /// </summary>
-        public IList<string> PivotParams { get; set; } = emptyPivotParams;
+        public IList<string> PivotParams { get; set; } = emptyStrings;
+
+        /// <summary>
+        /// A list of column names.
+        /// </summary>
+        public IList<string> Columns { get; set; } = emptyStrings;
 
         /// <summary>
         /// SPARQL query results by pivot parameter value set.

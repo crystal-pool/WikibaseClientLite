@@ -153,6 +153,7 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                                 resultSet = new AotSparqlQueryResultSet { Results = new List<AotSparqlQueryResult>() };
                                 if (pivotParamNames.Count > 0)
                                     resultSet.PivotParams = pivotParamNames.Select(p => p.ParamName).ToList();
+                                resultSet.Columns = resultVariables;
                                 cluster.ResultSets.Add(queryName, resultSet);
                             }
                         }
