@@ -152,7 +152,9 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 case DecimalNode n:
                     return n.AsDecimal();
                 case DateTimeNode n:
-                    return n.AsDateTime().ToUniversalTime().Ticks;
+                    var dt = n.AsDateTimeOffset();
+                    // LUA 5.1 does not have long, so we use double by default.
+                    return new [] { dt.ToUnixTimeMilliseconds(), dt.Offset.TotalMinutes };
                 case LiteralNode n:
                     return n.Value;
                 default:
