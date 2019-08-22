@@ -4,11 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
 using WikibaseClientLite.ModuleExporter.Schema;
 using WikiClientLibrary.Client;
 using WikiClientLibrary.Sites;
+using ILogger = Serilog.ILogger;
 
 namespace WikibaseClientLite.ModuleExporter
 {
@@ -18,17 +20,18 @@ namespace WikibaseClientLite.ModuleExporter
         private readonly List<MwSite> siteConfig;
         private readonly ConcurrentDictionary<string, WikiSite> sitesCacheDict;
         private readonly WikiClient wikiClient;
-        private readonly ILogger logger;
-        private readonly SerilogLoggerProvider loggerAdapter;
+        private readonly ILoggerFactory loggerFactory;
 
         public WikiSiteProvider(IEnumerable<MwSite> siteConfig, ILogger logger)
         {
             if (siteConfig == null) throw new ArgumentNullException(nameof(siteConfig));
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            if (logger == null) throw new ArgumentNullException(nameof(logger));
             this.siteConfig = siteConfig.ToList();
             wikiClient = new WikiClient();
             sitesCacheDict = new ConcurrentDictionary<string, WikiSite>(StringComparer.InvariantCultureIgnoreCase);
-            loggerAdapter = new SerilogLoggerProvider(logger);
+            loggerFactory = new LoggerFactory(Enumerable.Empty<ILoggerProvider>(),
+                    new LoggerFilterOptions { MinLevel = LogLevel.Warning })
+                .AddSerilog(logger);
         }
 
         public async Task<WikiSite> GetSiteAsync(string name)
@@ -50,7 +53,7 @@ namespace WikibaseClientLite.ModuleExporter
                         s = new WikiSite(wikiClient, config.ApiEndpoint);
                     }
                     s.ModificationThrottler.ThrottleTime = TimeSpan.FromSeconds(0.1);
-                    s.Logger = loggerAdapter.CreateLogger(name);
+                    s.Logger = loggerFactory.CreateLogger(name);
                     return s;
                 });
             }

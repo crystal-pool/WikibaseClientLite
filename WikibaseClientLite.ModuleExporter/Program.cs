@@ -10,6 +10,7 @@ using Serilog;
 using Serilog.Core;
 using WikibaseClientLite.ModuleExporter.CommandLine;
 using WikibaseClientLite.ModuleExporter.Schema;
+using WikiClientLibrary;
 
 namespace WikibaseClientLite.ModuleExporter
 {
@@ -75,7 +76,11 @@ namespace WikibaseClientLite.ModuleExporter
             }
             catch (Exception ex)
             {
-                logger.Error("Unhandled exception: {Message}.", ex.Message);
+                logger.Error(ex, "Unhandled exception.");
+                if (ex is MediaWikiRemoteException remoteEx)
+                {
+                    logger.Information("Remote stack trace: {StackTrace}", remoteEx.RemoteStackTrace);
+                }
                 throw;
             }
             finally
