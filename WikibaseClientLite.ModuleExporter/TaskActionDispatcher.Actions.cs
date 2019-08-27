@@ -81,15 +81,14 @@ namespace WikibaseClientLite.ModuleExporter
         public async Task ExecuteAotSparqlAction(AotSparqlOptions options)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
-            using (var moduleFactory = await OptionUtility.CreateExportModuleFactoryAsync(options.ExportModulePrefix, mwSiteProvider, logger))
-            using (var graph = new Graph())
+            using (var namespaceMap = new NamespaceMapper())
             {
-                graph.LoadFromFile(options.DumpFile);
-                logger.Information("Loaded {Count} triples.", graph.Triples.Count);
-                var dataset = new InMemoryDataset(graph);
-                var executor = new AotSparqlExecutor(dataset, graph.NamespaceMap, uri =>
+                foreach (var entry in options.NamespaceMapping)
+                    namespaceMap.AddNamespace(entry.Key, new Uri(entry.Value));
+                using (var moduleFactory = await OptionUtility.CreateExportModuleFactoryAsync(options.ExportModulePrefix, mwSiteProvider, logger))
+                using (var executor = new AotSparqlExecutor(options.DataSource, namespaceMap, uri =>
                 {
-                    if (graph.NamespaceMap.ReduceToQName(uri.ToString(), out var qname))
+                    if (namespaceMap.ReduceToQName(uri.ToString(), out var qname))
                     {
                         // Remove prefix for local entities.
                         if (qname.StartsWith("wd:", StringComparison.OrdinalIgnoreCase))
@@ -97,14 +96,16 @@ namespace WikibaseClientLite.ModuleExporter
                         return qname;
                     }
                     throw new InvalidOperationException($"Cannot reduce {uri} into its QName.");
-                });
-                var exporter = new AotSparqlModuleExporter(logger, moduleFactory, executor);
+                }, logger.ForContext<AotSparqlExecutor>()))
                 {
-                    var (configSite, configModule) = await OptionUtility.ResolveSiteAndTitleAsync(options.ConfigModule, mwSiteProvider);
-                    await exporter.LoadConfigFromModuleAsync(configSite, configModule);
-                    logger.Information("Loaded config from {Module}.", options.ConfigModule);
+                    var exporter = new AotSparqlModuleExporter(logger, moduleFactory, executor);
+                    {
+                        var (configSite, configModule) = await OptionUtility.ResolveSiteAndTitleAsync(options.ConfigModule, mwSiteProvider);
+                        await exporter.LoadConfigFromModuleAsync(configSite, configModule);
+                        logger.Information("Loaded config from {Module}.", options.ConfigModule);
+                    }
+                    await exporter.ExportModulesAsync();
                 }
-                await exporter.ExportModulesAsync();
             }
         }
 

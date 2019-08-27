@@ -1,39 +1,53 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Serilog;
 using VDS.RDF;
 using VDS.RDF.Nodes;
 using VDS.RDF.Parsing;
 using VDS.RDF.Query;
 using VDS.RDF.Query.Datasets;
 using WikibaseClientLite.ModuleExporter.Sparql.Contracts;
-using SparqlQuery = VDS.RDF.Query.SparqlQuery;
 
 namespace WikibaseClientLite.ModuleExporter.Sparql
 {
 
-    public class AotSparqlExecutor
+    public sealed class AotSparqlExecutor : IDisposable
     {
         private readonly INamespaceMapper namespaceMapper;
         private readonly Func<Uri, string> uriSerializer;
 
-        private readonly LeviathanQueryProcessor queryProcessor;
+        private readonly IGraph underlyingGraph;
+        private readonly ISparqlQueryProcessor queryProcessor;
         private readonly SparqlQueryParser queryParser;
 
-        public AotSparqlExecutor(ISparqlDataset dataset, INamespaceMapper namespaceMapper, Func<Uri, string> uriSerializer)
+        public AotSparqlExecutor(string dataSetUri, INamespaceMapper namespaceMapper, Func<Uri, string> uriSerializer, ILogger logger)
         {
-            Dataset = dataset ?? throw new ArgumentNullException(nameof(dataset));
+            if (dataSetUri == null) throw new ArgumentNullException(nameof(dataSetUri));
             this.namespaceMapper = namespaceMapper ?? throw new ArgumentNullException(nameof(namespaceMapper));
             this.uriSerializer = uriSerializer ?? throw new ArgumentNullException(nameof(uriSerializer));
-            queryProcessor = new LeviathanQueryProcessor(dataset);
+            var uri = new Uri(new Uri(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar, UriKind.Absolute), dataSetUri);
+            if (uri.IsFile)
+            {
+                underlyingGraph = new Graph();
+                underlyingGraph.LoadFromFile(uri.LocalPath);
+                logger.Information("Loaded {Count} triples.", underlyingGraph.Triples.Count);
+                var dataset = new InMemoryDataset(underlyingGraph);
+                queryProcessor = new LeviathanQueryProcessor(dataset);
+            }
+            else
+            {
+                var endpoint = new SparqlRemoteEndpoint(uri);
+                queryProcessor = new RemoteQueryProcessor(endpoint);
+                logger.Information("Using SPARQL endpoint from {Host}.", uri.Host);
+            }
             queryParser = new SparqlQueryParser();
         }
-
-        public ISparqlDataset Dataset { get; }
 
         public string SerializeUri(Uri nodeUri)
         {
@@ -154,7 +168,7 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 case DateTimeNode n:
                     var dt = n.AsDateTimeOffset();
                     // LUA 5.1 does not have long, so we use double by default.
-                    return new [] { dt.ToUnixTimeMilliseconds(), dt.Offset.TotalMinutes };
+                    return new[] { dt.ToUnixTimeMilliseconds(), dt.Offset.TotalMinutes };
                 case LiteralNode n:
                     return n.Value;
                 default:
@@ -162,6 +176,11 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
             }
         }
 
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            underlyingGraph?.Dispose();
+        }
     }
 
 }
