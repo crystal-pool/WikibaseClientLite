@@ -131,7 +131,6 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
             return new AotSparqlQueryResult { Rows = resultRows };
         }
 
-        private readonly object emptyObject = new object();
         private readonly object boxedTrue = true, boxedFalse = false;
 
         public object SerializeNode(INode node)
@@ -143,7 +142,7 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 case UriNode uriNode:
                     return uriSerializer(uriNode.Uri);
                 case BlankNode _:
-                    return emptyObject;
+                    return uriSerializer(null);
                 case StringNode n:
                     if (string.IsNullOrEmpty(n.Language))
                         return n.AsString();

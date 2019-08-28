@@ -88,6 +88,11 @@ namespace WikibaseClientLite.ModuleExporter
                 using (var moduleFactory = await OptionUtility.CreateExportModuleFactoryAsync(options.ExportModulePrefix, mwSiteProvider, logger))
                 using (var executor = new AotSparqlExecutor(options.DataSource, namespaceMap, uri =>
                 {
+                    if (uri == null)
+                    {
+                        // Blank node.
+                        return "_:";
+                    }
                     if (namespaceMap.ReduceToQName(uri.ToString(), out var qname))
                     {
                         // Remove prefix for local entities.
