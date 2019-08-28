@@ -143,7 +143,7 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                         var cluster = clusterDict.GetOrAdd(clusterKey,
                             k => new AotSparqlModuleRoot
                             {
-                                ResultSets = new Dictionary<string, AotSparqlQueryResultSet>()
+                                ResultSets = new SortedDictionary<string, AotSparqlQueryResultSet>()
                             });
                         AotSparqlQueryResultSet resultSet;
                         lock (cluster)
@@ -183,6 +183,21 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 {
                     Logger.Error(ex, "Failed to execute query {QueryName}.", queryName);
                     throw;
+                }
+            }
+            Logger.Information("Normalize clustered modules…");
+            // Sort result rows to ensure we only update modules when we need to.
+            foreach (var root in clusterDict.Values)
+            {
+                foreach (var resultSet in root.ResultSets.Values)
+                {
+                    var results = (List<AotSparqlQueryResult>)resultSet.Results;
+                    results.Sort((x, y) => SequenceComparer<object>.Default.Compare(x.PivotValues, y.PivotValues));
+                    foreach (var result in results)
+                    {
+                        var rows = (List<IList<object>>)result.Rows;
+                        rows.Sort(SequenceComparer<object>.Default);
+                    }
                 }
             }
             Logger.Information("Writing {Count} clustered modules…", clusterDict.Count);

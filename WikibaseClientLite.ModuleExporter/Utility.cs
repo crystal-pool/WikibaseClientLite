@@ -35,4 +35,33 @@ namespace WikibaseClientLite.ModuleExporter
         }
 
     }
+
+    public class SequenceComparer<T> : Comparer<IEnumerable<T>>
+    {
+
+        public new static SequenceComparer<T> Default { get; } = new SequenceComparer<T>();
+
+        /// <inheritdoc />
+        public override int Compare(IEnumerable<T> x, IEnumerable<T> y)
+        {
+            if (x == null) return y == null ? 0 : -1;
+            if (y == null) return 1;
+            using (var ity = y.GetEnumerator())
+            {
+                foreach (var xv in x)
+                {
+                    if (!ity.MoveNext())
+                        return 1;
+                    var cp = Comparer<T>.Default.Compare(xv, ity.Current);
+                    if (cp != 0)
+                        return cp;
+                }
+                if (ity.MoveNext())
+                    return -1;
+            }
+            return 0;
+        }
+
+    }
+
 }
