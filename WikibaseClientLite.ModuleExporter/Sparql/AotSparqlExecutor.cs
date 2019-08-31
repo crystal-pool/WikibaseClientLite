@@ -13,6 +13,7 @@ using VDS.RDF.Parsing;
 using VDS.RDF.Query;
 using VDS.RDF.Query.Datasets;
 using WikibaseClientLite.ModuleExporter.Sparql.Contracts;
+using SparqlQuery = VDS.RDF.Query.SparqlQuery;
 
 namespace WikibaseClientLite.ModuleExporter.Sparql
 {
@@ -21,6 +22,7 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
     {
         private readonly INamespaceMapper namespaceMapper;
         private readonly Func<Uri, string> uriSerializer;
+        private readonly ILogger logger;
 
         private readonly IGraph underlyingGraph;
         private readonly ISparqlQueryProcessor queryProcessor;
@@ -47,12 +49,50 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 logger.Information("Using SPARQL endpoint from {Host}.", uri.Host);
             }
             queryParser = new SparqlQueryParser();
+            this.logger = logger;
         }
 
         public string SerializeUri(Uri nodeUri)
         {
             return uriSerializer(nodeUri);
         }
+
+        private SparqlQuery GuardedParseQueryString(SparqlParameterizedString query)
+        {
+            try
+            {
+                return queryParser.ParseFromString(query);
+            }
+            catch (RdfParseException ex)
+            {
+                string context = null;
+                if (ex.HasPositionInformation)
+                {
+                    var expr = query.ToString().Split('\n');
+                    var sb = new StringBuilder();
+                    for (int i = Math.Max(0, ex.StartLine - 1 - 2), j = Math.Min(expr.Length, ex.StartLine - 1); i < j; i++)
+                    {
+                        sb.AppendFormat("{0,-3}    ", i + 1);
+                        sb.AppendLine(expr[i]);
+                    }
+                    for (int i = Math.Max(0, ex.StartLine - 1), j = Math.Min(expr.Length, ex.EndLine); i < j; i++)
+                    {
+                        sb.AppendFormat("{0,-3}  ! ", i + 1);
+                        sb.AppendLine(expr[i]);
+                    }
+                    for (int i = Math.Max(0, ex.EndLine), j = Math.Min(expr.Length, ex.EndLine + 2); i < j; i++)
+                    {
+                        sb.AppendFormat("{0,-3}    ", i + 1);
+                        sb.AppendLine(expr[i]);
+                    }
+                    context = sb.ToString();
+                }
+                logger.Warning("Failed to parse query string. {Error}\n{Context}", ex.Message, context);
+                throw;
+            }
+        }
+
+        private readonly Uri dummyUri = new Uri("http://example.org/dummyUri");
 
         public IList<string> GetResultVariables(string queryExpr, IEnumerable<string> parameterNames = null)
         {
@@ -70,11 +110,11 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
             {
                 foreach (var name in parameterNames)
                 {
-                    queryString.SetBlankNode(name);
+                    queryString.SetUri(name, dummyUri);
                 }
             }
             // Parse the query.
-            var query = queryParser.ParseFromString(queryString);
+            var query = GuardedParseQueryString(queryString);
             return query.Variables.Where(v => v.IsResultVariable).Select(v => v.Name).ToList();
         }
 
@@ -98,7 +138,7 @@ namespace WikibaseClientLite.ModuleExporter.Sparql
                 }
             }
             // Parse the query.
-            var query = queryParser.ParseFromString(queryString);
+            var query = GuardedParseQueryString(queryString);
             foreach (var prefix in namespaceMapper.Prefixes)
             {
                 if (!query.NamespaceMap.HasNamespace(prefix))

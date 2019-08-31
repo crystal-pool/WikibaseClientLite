@@ -81,11 +81,10 @@ namespace WikibaseClientLite.ModuleExporter
                 {
                     logger.Information("Remote stack trace: {StackTrace}", remoteEx.RemoteStackTrace);
                 }
-                throw;
+                return -1;
             }
             finally
             {
-                // We don't want to lose logs on Discord.
                 logger.Dispose();
             }
             return 0;
