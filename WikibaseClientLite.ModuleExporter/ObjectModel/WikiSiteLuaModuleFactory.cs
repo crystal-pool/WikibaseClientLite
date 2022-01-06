@@ -86,7 +86,7 @@ namespace WikibaseClientLite.ModuleExporter.ObjectModel
             await queued.Select(t => t.Page).RefreshAsync(PageQueryOptions.None);
             var updatedRequests = 0;
             var updatedPages = 0;
-            using (var sha1Provider = new SHA1Managed())
+            using (var sha1Provider = SHA1.Create())
             {
                 foreach (var task in queued)
                 {
