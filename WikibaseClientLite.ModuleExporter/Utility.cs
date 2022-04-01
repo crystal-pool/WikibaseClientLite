@@ -7,6 +7,9 @@ namespace WikibaseClientLite.ModuleExporter
     public static class Utility
     {
 
+        // https://github.com/wikimedia/Wikibase/blob/fe0bd73dda1262eda23b2f83c0bc551b3e50203c/repo/includes/Rdf/RdfVocabulary.php#L77
+        public static readonly Uri WikibaseRdfUnityEntity = new Uri("http://www.wikidata.org/entity/Q199");
+
         public static int HashItemId(char prefix, int id)
         {
             prefix = char.ToUpperInvariant(prefix);
