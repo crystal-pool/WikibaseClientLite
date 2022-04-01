@@ -3,10 +3,11 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CXuesong.Luaon" Version="0.2.3" />
+    <PackageReference Include="CXuesong.Luaon" Version="0.2.5" />
     <PackageReference Include="CXuesong.Luaon.Json" Version="0.2.1" />
     <PackageReference Include="CXuesong.MW.WikiClientLibrary" Version="0.7.5" />
     <PackageReference Include="CXuesong.MW.WikiClientLibrary.Wikibase" Version="0.7.5" />

@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
+﻿using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Serilog;
-using Serilog.Core;
 using WikiClientLibrary.Pages;
 using WikiClientLibrary.Sites;
 

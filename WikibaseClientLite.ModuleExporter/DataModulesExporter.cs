@@ -1,15 +1,6 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using Luaon;
 using Luaon.Json;
-using Newtonsoft.Json;
 using Serilog;
 using WikibaseClientLite.ModuleExporter.ObjectModel;
 using WikiClientLibrary.Wikibase;

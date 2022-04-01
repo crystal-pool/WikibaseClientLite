@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace WikibaseClientLite.ModuleExporter.ObjectModel
+﻿namespace WikibaseClientLite.ModuleExporter.ObjectModel
 {
     public abstract class LuaModuleFactory : IDisposable
     {

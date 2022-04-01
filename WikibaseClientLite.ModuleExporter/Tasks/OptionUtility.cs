@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using Serilog;
+﻿using Serilog;
 using WikibaseClientLite.ModuleExporter.ObjectModel;
 using WikiClientLibrary.Sites;
 

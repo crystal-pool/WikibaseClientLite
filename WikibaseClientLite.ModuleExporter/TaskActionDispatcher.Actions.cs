@@ -1,13 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
+﻿using Newtonsoft.Json.Linq;
 using VDS.RDF;
-using VDS.RDF.Query.Datasets;
 using WikibaseClientLite.ModuleExporter.ObjectModel;
 using WikibaseClientLite.ModuleExporter.Sparql;
 using WikibaseClientLite.ModuleExporter.Tasks;
