@@ -1,68 +1,66 @@
 ﻿using System.Text;
 
-namespace WikibaseClientLite.ModuleExporter
+namespace WikibaseClientLite.ModuleExporter;
+
+public static class Utility
 {
-    public static class Utility
+
+    // https://github.com/wikimedia/Wikibase/blob/fe0bd73dda1262eda23b2f83c0bc551b3e50203c/repo/includes/Rdf/RdfVocabulary.php#L77
+    public static readonly Uri WikibaseRdfUnityEntity = new("http://www.wikidata.org/entity/Q199");
+
+    public static int HashItemId(char prefix, int id)
     {
-
-        // https://github.com/wikimedia/Wikibase/blob/fe0bd73dda1262eda23b2f83c0bc551b3e50203c/repo/includes/Rdf/RdfVocabulary.php#L77
-        public static readonly Uri WikibaseRdfUnityEntity = new Uri("http://www.wikidata.org/entity/Q199");
-
-        public static int HashItemId(char prefix, int id)
-        {
-            prefix = char.ToUpperInvariant(prefix);
-            return unchecked (prefix * 6291469 + id);
-        }
-
-        public static int HashItemId(string id)
-        {
-            id = id.Trim();
-            return HashItemId(id[0], Convert.ToInt32(id.Substring(1)));
-        }
-
-        public static int HashString(string s)
-        {
-            const int M = 11126858;
-            var hash = 1;
-            foreach (var c in s) hash = (hash % M) * 193 + c;
-            return hash;
-        }
-
-        public static string BytesToHexString(byte[] bytes)
-        {
-            var sb = new StringBuilder(bytes.Length * 2);
-            foreach (var b in bytes) sb.Append(b.ToString("X2"));
-            return sb.ToString();
-        }
-
+        prefix = char.ToUpperInvariant(prefix);
+        return unchecked(prefix * 6291469 + id);
     }
 
-    public class SequenceComparer<T> : Comparer<IEnumerable<T>>
+    public static int HashItemId(string id)
     {
+        id = id.Trim();
+        return HashItemId(id[0], Convert.ToInt32(id.Substring(1)));
+    }
 
-        public new static SequenceComparer<T> Default { get; } = new SequenceComparer<T>();
+    public static int HashString(string s)
+    {
+        const int M = 11126858;
+        var hash = 1;
+        foreach (var c in s) hash = (hash % M) * 193 + c;
+        return hash;
+    }
 
-        /// <inheritdoc />
-        public override int Compare(IEnumerable<T> x, IEnumerable<T> y)
+    public static string BytesToHexString(byte[] bytes)
+    {
+        var sb = new StringBuilder(bytes.Length * 2);
+        foreach (var b in bytes) sb.Append(b.ToString("X2"));
+        return sb.ToString();
+    }
+
+}
+
+public class SequenceComparer<T> : Comparer<IEnumerable<T>>
+{
+
+    public new static SequenceComparer<T> Default { get; } = new SequenceComparer<T>();
+
+    /// <inheritdoc />
+    public override int Compare(IEnumerable<T> x, IEnumerable<T> y)
+    {
+        if (x == null) return y == null ? 0 : -1;
+        if (y == null) return 1;
+        using (var ity = y.GetEnumerator())
         {
-            if (x == null) return y == null ? 0 : -1;
-            if (y == null) return 1;
-            using (var ity = y.GetEnumerator())
+            foreach (var xv in x)
             {
-                foreach (var xv in x)
-                {
-                    if (!ity.MoveNext())
-                        return 1;
-                    var cp = Comparer<T>.Default.Compare(xv, ity.Current);
-                    if (cp != 0)
-                        return cp;
-                }
-                if (ity.MoveNext())
-                    return -1;
+                if (!ity.MoveNext())
+                    return 1;
+                var cp = Comparer<T>.Default.Compare(xv, ity.Current);
+                if (cp != 0)
+                    return cp;
             }
-            return 0;
+            if (ity.MoveNext())
+                return -1;
         }
-
+        return 0;
     }
 
 }
