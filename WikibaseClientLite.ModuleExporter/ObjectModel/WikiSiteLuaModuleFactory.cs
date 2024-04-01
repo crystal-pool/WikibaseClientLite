@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks.Dataflow;
+using System.Threading.Channels;
 using Serilog;
 using WikiClientLibrary.Pages;
 using WikiClientLibrary.Sites;
@@ -13,46 +13,39 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
 
     private readonly ILogger logger;
 
+    private readonly Channel<QueuedWritingTask> channel =
+        Channel.CreateBounded<QueuedWritingTask>(new BoundedChannelOptions(100) { FullMode = BoundedChannelFullMode.Wait });
+
     public WikiSiteLuaModuleFactory(WikiSite site, string titlePrefix, ILogger logger)
     {
         Site = site;
         TitlePrefix = titlePrefix;
-        batchBlock = new BatchBlock<QueuedWritingTask>(50, new GroupingDataflowBlockOptions { BoundedCapacity = 100 });
-        writingBlock = new ActionBlock<ICollection<QueuedWritingTask>>(WritingBlockActionAsync,
-            new ExecutionDataflowBlockOptions { BoundedCapacity = 1, MaxDegreeOfParallelism = 1 });
         this.logger = logger.ForContext<WikiSiteLuaModuleFactory>();
-        batchBlock.LinkTo(writingBlock, new DataflowLinkOptions { PropagateCompletion = true });
+        _ = WriteAsync(channel.Reader);
     }
 
-    /// <summary>
-    /// The MediaWiki site to publish the modules.
-    /// </summary>
     public WikiSite Site { get; }
 
-    /// <summary>
-    /// Prefix of the LUA module titles, including <c>Module:</c> namespace prefix.
-    /// </summary>
     public string TitlePrefix { get; }
 
-    /// <inheritdoc />
     public override ILuaModule GetModule(string title)
     {
         var page = new WikiPage(Site, TitlePrefix + title);
-        // return new LuaModule(page);
         return new MemoryBufferedLuaModule(page, this);
     }
 
-    /// <inheritdoc />
-    public override Task ShutdownAsync()
+    public override async Task ShutdownAsync()
     {
-        batchBlock.Complete();
-        return writingBlock.Completion;
+        channel.Writer.Complete();
+        await channel.Reader.Completion;
     }
 
-    /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        batchBlock.Complete();
+        if (disposing)
+        {
+            channel.Writer.TryComplete();
+        }
         base.Dispose(disposing);
     }
 
@@ -74,40 +67,49 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
 
     }
 
-    private readonly BatchBlock<QueuedWritingTask> batchBlock;
-    private readonly ActionBlock<ICollection<QueuedWritingTask>> writingBlock;
-
-    private async Task WritingBlockActionAsync(ICollection<QueuedWritingTask> queued)
+    private async Task WriteAsync(ChannelReader<QueuedWritingTask> reader)
     {
-        await queued.Select(t => t.Page).RefreshAsync(PageQueryOptions.None);
-        var updatedRequests = 0;
-        var updatedPages = 0;
-        using (var sha1Provider = SHA1.Create())
+        var consecutiveFailures = 0;
+        await foreach (var task in reader.ReadAllAsync())
         {
-            foreach (var task in queued)
+            try
             {
-                if (task.Page.ContentLength == Encoding.UTF8.GetByteCount(task.NewContent))
-                {
-                    var hash = Utility.BytesToHexString(sha1Provider.ComputeHash(Encoding.UTF8.GetBytes(task.NewContent)));
-                    // Content is unchanged.
-                    if (string.Equals(task.Page.LastRevision.Sha1, hash, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                }
+                await task.Page.RefreshAsync(PageQueryOptions.None);
+                if (task.Page.ContentLength == Encoding.UTF8.GetByteCount(task.NewContent)) continue;
 
-                task.Page.Content = task.NewContent;
-                var oldRevid = task.Page.LastRevisionId;
-                logger.Information("Updating {Page}.", task.Page);
-                await task.Page.UpdateContentAsync(task.Summary, false, true);
-                if (task.Page.LastRevisionId != oldRevid) updatedPages++;
-                updatedRequests++;
+                var hash = Utility.BytesToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(task.NewContent)));
+                if (!string.Equals(task.Page.LastRevision.Sha1, hash, StringComparison.OrdinalIgnoreCase))
+                {
+                    task.Page.Content = task.NewContent;
+                    logger.Information("Updating {Page}.", task.Page);
+                    await task.Page.UpdateContentAsync(task.Summary, false, true);
+                    consecutiveFailures = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to write LUA module: {Page}.", task.Page);
+                consecutiveFailures++;
+                if (consecutiveFailures > 5)
+                {
+                    logger.Error("Too many failures. Not continuing.");
+                    // Nobody else is going to drain the queue.
+                    channel.Writer.Complete(ex);
+                    break;
+                }
             }
         }
-        logger.Debug("Updated {Updated}/{Requests}/{Total} pages.", updatedPages, updatedRequests, queued.Count);
+
+        channel.Writer.TryComplete();
+        while (channel.Reader.TryRead(out var task))
+        {
+            logger.Verbose("Draining task: {Page}.", task.Page);
+        }
     }
 
     internal async Task QueuePageForWritingAsync(WikiPage page, string content, string summary)
     {
-        await batchBlock.SendAsync(new QueuedWritingTask(page, content, summary));
+        await channel.Writer.WriteAsync(new QueuedWritingTask(page, content, summary));
     }
 
     private sealed class MemoryBufferedLuaModule : ILuaModule
@@ -116,7 +118,7 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
         private readonly WikiPage page;
         private readonly WikiSiteLuaModuleFactory owner;
         private readonly StringBuilder sb = new StringBuilder();
-        private TextWriter writer;
+        private StringWriter writer;
 
         public MemoryBufferedLuaModule(WikiPage page, WikiSiteLuaModuleFactory owner)
         {
@@ -126,7 +128,6 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
             this.owner = owner;
         }
 
-        /// <inheritdoc />
         public void Dispose()
         {
             writer?.Dispose();
@@ -134,7 +135,6 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
             sb.Clear();
         }
 
-        /// <inheritdoc />
         public TextWriter Writer
         {
             get
@@ -147,7 +147,6 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
             }
         }
 
-        /// <inheritdoc />
         public async Task SubmitAsync(string editSummary)
         {
             string newContent;
@@ -165,66 +164,6 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
                 newContent = sb.ToString(0, contentLength);
             }
             await owner.QueuePageForWritingAsync(page, newContent, editSummary);
-        }
-
-    }
-
-    private sealed class LuaModule : ILuaModule
-    {
-
-        private readonly WikiPage page;
-        private string tempFileName;
-        private TextWriter tempWriter;
-
-        public LuaModule(WikiPage page)
-        {
-            Debug.Assert(page != null);
-            this.page = page;
-        }
-
-        /// <inheritdoc />
-        public void Dispose()
-        {
-            tempWriter?.Dispose();
-            tempWriter = null;
-            if (tempFileName != null)
-                File.Delete(tempFileName);
-        }
-
-        private void EnsureWriter()
-        {
-            if (tempWriter == null)
-            {
-                var fileName = Path.GetTempFileName();
-                tempFileName = fileName;
-                tempWriter = File.CreateText(fileName);
-            }
-        }
-
-        /// <inheritdoc />
-        public TextWriter Writer
-        {
-            get
-            {
-                EnsureWriter();
-                return tempWriter;
-            }
-        }
-
-        /// <inheritdoc />
-        public async Task SubmitAsync(string editSummary)
-        {
-            if (tempWriter == null)
-            {
-                page.Content = "";
-            }
-            else
-            {
-                tempWriter.Close();
-                tempWriter = null;
-                page.Content = await File.ReadAllTextAsync(tempFileName);
-            }
-            await page.UpdateContentAsync(editSummary, false, true);
         }
 
     }
