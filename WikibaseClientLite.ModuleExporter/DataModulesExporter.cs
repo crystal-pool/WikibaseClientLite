@@ -84,6 +84,16 @@ public class DataModulesExporter
             entity.Labels = FilterMonolingualTexts(entity.Labels, languages);
             entity.Descriptions = FilterMonolingualTexts(entity.Descriptions, languages);
             entity.Aliases = FilterMonolingualTexts(entity.Aliases, languages);
+            foreach (var c in entity.Claims)
+            {
+                // Mitigates 4458a8b567a3e7c5efd3f693af23ec95e86870d4
+                // TODO Cleanup mitigation after next version of WCL
+                if (c.MainSnak.Hash == "") c.MainSnak.Hash = null!;
+                foreach (var s in c.References.SelectMany(r => r.Snaks))
+                {
+                    if (s.Hash == "") s.Hash = null!;
+                }
+            }
 
             // Persist
             using (var module = moduleFactory.GetModule(entity.Id))
