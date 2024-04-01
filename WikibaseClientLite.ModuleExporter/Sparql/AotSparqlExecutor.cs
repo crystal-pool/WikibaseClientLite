@@ -16,6 +16,7 @@ public sealed class AotSparqlExecutor : IDisposable
     private readonly INamespaceMapper namespaceMapper;
     private readonly Func<Uri, string> uriSerializer;
     private readonly ILogger logger;
+    private readonly HttpClient httpClient;
 
     private readonly IGraph underlyingGraph;
     private readonly ISparqlQueryProcessor queryProcessor;
@@ -37,7 +38,8 @@ public sealed class AotSparqlExecutor : IDisposable
         }
         else
         {
-            var endpoint = new SparqlRemoteEndpoint(uri);
+            httpClient = new HttpClient();
+            var endpoint = new SparqlQueryClient(httpClient, uri);
             queryProcessor = new RemoteQueryProcessor(endpoint);
             logger.Information("Using SPARQL endpoint from {Host}.", uri.Host);
         }
@@ -212,6 +214,7 @@ public sealed class AotSparqlExecutor : IDisposable
     public void Dispose()
     {
         underlyingGraph?.Dispose();
+        httpClient?.Dispose();
     }
 
 }
