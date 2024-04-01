@@ -48,7 +48,7 @@ public class WikiSiteProvider : IDisposable, IWikiFamily
                 {
                     s = new WikiSite(wikiClient, config.ApiEndpoint);
                 }
-                s.ModificationThrottler.ThrottleTime = TimeSpan.FromSeconds(0.1);
+                s.ModificationThrottler.ThrottleTime = TimeSpan.FromSeconds(1);
                 s.Logger = loggerFactory.CreateLogger(name);
                 logger.Verbose("Created WikiSite {Name} with Account {UserName}.", config.Name, config.UserName);
                 return s;
