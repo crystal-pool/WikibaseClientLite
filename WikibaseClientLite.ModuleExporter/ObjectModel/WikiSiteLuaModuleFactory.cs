@@ -14,7 +14,7 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
     private readonly ILogger logger;
 
     private readonly Channel<QueuedWritingTask> channel =
-        Channel.CreateBounded<QueuedWritingTask>(new BoundedChannelOptions(20) { FullMode = BoundedChannelFullMode.Wait });
+        Channel.CreateBounded<QueuedWritingTask>(new BoundedChannelOptions(100) { FullMode = BoundedChannelFullMode.Wait });
 
     public WikiSiteLuaModuleFactory(WikiSite site, string titlePrefix, ILogger logger)
     {
@@ -69,34 +69,60 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
 
     private async Task WriteAsync(ChannelReader<QueuedWritingTask> reader)
     {
-        var consecutiveFailures = 0;
-        await foreach (var task in reader.ReadAllAsync())
+        await foreach (var batch in reader.ReadAllAsync().Buffer(100))
         {
+            var updatedRequests = 0;
+            var updatedPages = 0;
+
             try
             {
-                await task.Page.RefreshAsync(PageQueryOptions.None);
-                if (task.Page.ContentLength == Encoding.UTF8.GetByteCount(task.NewContent)) continue;
+                await batch.Select(t => t.Page).RefreshAsync(PageQueryOptions.None);
 
-                var hash = Utility.BytesToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(task.NewContent)));
-                if (!string.Equals(task.Page.LastRevision.Sha1, hash, StringComparison.OrdinalIgnoreCase))
+                var consecutiveFailures = 0;
+                foreach (var task in batch)
                 {
-                    task.Page.Content = task.NewContent;
-                    logger.Information("Updating {Page}.", task.Page);
-                    await task.Page.UpdateContentAsync(task.Summary, false, true);
-                    consecutiveFailures = 0;
+                    try
+                    {
+                        if (task.Page.ContentLength == Encoding.UTF8.GetByteCount(task.NewContent))
+                        {
+                            var hash = Utility.BytesToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(task.NewContent)));
+                            // Content is unchanged.
+                            if (string.Equals(task.Page.LastRevision?.Sha1, hash, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                        }
+                        var oldRevid = task.Page.LastRevisionId;
+                        logger.Information("Updating {Page}.", task.Page);
+                        await task.Page.EditAsync(new()
+                        {
+                            Content = task.NewContent,
+                            Summary = task.Summary,
+                            Bot = true,
+                        });
+                        if (task.Page.LastRevisionId != oldRevid) updatedPages++;
+                        updatedRequests++;
+                        consecutiveFailures = 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Error(ex, "Failed to write LUA module: {Page}.", task.Page);
+                        consecutiveFailures++;
+                        if (consecutiveFailures > 5)
+                        {
+                            logger.Error("Too many failures. Not continuing.");
+                            throw;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Failed to write LUA module: {Page}.", task.Page);
-                consecutiveFailures++;
-                if (consecutiveFailures > 5)
-                {
-                    logger.Error("Too many failures. Not continuing.");
-                    // Nobody else is going to drain the queue.
-                    channel.Writer.Complete(ex);
-                    break;
-                }
+                // Nobody else is going to drain the queue.
+                channel.Writer.Complete(ex);
+                break;
+            }
+            finally
+            {
+                logger.Debug("Updated {Updated}/{Requests}/{Total} pages.", updatedPages, updatedRequests, batch.Count);
             }
         }
 
