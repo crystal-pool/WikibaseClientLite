@@ -15,6 +15,7 @@ public class WikiSiteProvider : IDisposable, IWikiFamily
     private readonly ConcurrentDictionary<string, WikiSite> sitesCacheDict;
     private readonly WikiClient wikiClient;
     private readonly ILoggerFactory loggerFactory;
+    private readonly ILogger logger;
 
     public WikiSiteProvider(IEnumerable<MwSite> siteConfig, ILogger logger)
     {
@@ -26,6 +27,7 @@ public class WikiSiteProvider : IDisposable, IWikiFamily
         loggerFactory = new LoggerFactory(Enumerable.Empty<ILoggerProvider>(),
                 new LoggerFilterOptions { MinLevel = LogLevel.Warning })
             .AddSerilog(logger);
+        this.logger = logger;
     }
 
     public async Task<WikiSite> GetSiteAsync(string name)
@@ -48,6 +50,7 @@ public class WikiSiteProvider : IDisposable, IWikiFamily
                 }
                 s.ModificationThrottler.ThrottleTime = TimeSpan.FromSeconds(0.1);
                 s.Logger = loggerFactory.CreateLogger(name);
+                logger.Verbose("Created WikiSite {Name} with Account {UserName}.", config.Name, config.UserName);
                 return s;
             });
         }

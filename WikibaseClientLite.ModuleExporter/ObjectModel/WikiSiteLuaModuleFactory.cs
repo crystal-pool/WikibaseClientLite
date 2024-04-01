@@ -14,7 +14,7 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
     private readonly ILogger logger;
 
     private readonly Channel<QueuedWritingTask> channel =
-        Channel.CreateBounded<QueuedWritingTask>(new BoundedChannelOptions(100) { FullMode = BoundedChannelFullMode.Wait });
+        Channel.CreateBounded<QueuedWritingTask>(new BoundedChannelOptions(20) { FullMode = BoundedChannelFullMode.Wait });
 
     public WikiSiteLuaModuleFactory(WikiSite site, string titlePrefix, ILogger logger)
     {
