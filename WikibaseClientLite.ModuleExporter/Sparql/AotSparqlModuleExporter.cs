@@ -1,7 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text.Json;
 using Luaon.Json;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using Serilog;
 using VDS.RDF;
@@ -10,6 +12,7 @@ using WikibaseClientLite.ModuleExporter.ObjectModel;
 using WikibaseClientLite.ModuleExporter.Sparql.Contracts;
 using WikiClientLibrary.Scribunto;
 using WikiClientLibrary.Sites;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace WikibaseClientLite.ModuleExporter.Sparql;
 
@@ -19,9 +22,9 @@ public class AotSparqlModuleExporter
     private readonly LuaModuleFactory moduleFactory;
     private readonly AotSparqlExecutor executor;
 
-    private static readonly JsonSerializer luaModuleJsonSerializer = new JsonSerializer
+    private static readonly JsonSerializerOptions luaModuleJsonOptions = new()
     {
-        ContractResolver = new CamelCasePropertyNamesContractResolver()
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
     public AotSparqlModuleExporter(ILogger logger, LuaModuleFactory moduleFactory, AotSparqlExecutor executor)
@@ -41,7 +44,7 @@ public class AotSparqlModuleExporter
     {
         if (site == null) throw new ArgumentNullException(nameof(site));
         if (moduleName == null) throw new ArgumentNullException(nameof(moduleName));
-        var config = await site.ScribuntoLoadDataAsync<AotSparqlSiteConfig>(moduleName, luaModuleJsonSerializer);
+        var config = await site.ScribuntoLoadDataAsync<AotSparqlSiteConfig>(moduleName, luaModuleJsonOptions);
         Logger.Information("Loaded config from {Site}. Queries count: {QueriesCount}.", site, config.Queries.Count);
         SiteConfig = config;
     }
@@ -202,9 +205,11 @@ public class AotSparqlModuleExporter
             using (var module = moduleFactory.GetModule(name))
             {
                 WriteProlog(module.Writer, "Cluster key: " + name);
-                using (var jwriter = new JsonLuaWriter(module.Writer) { CloseOutput = false })
+                await using (var jwriter = new JsonLuaWriter(module.Writer) { CloseOutput = false })
                 {
-                    luaModuleJsonSerializer.Serialize(jwriter, root);
+                    // TODO Remove JSON node conversion
+                    var jsonContent = JsonSerializer.Serialize(root, luaModuleJsonOptions);
+                    await JToken.Parse(jsonContent).WriteToAsync(jwriter);
                 }
                 WriteEpilog(module.Writer);
                 await module.SubmitAsync("Export clustered SPARQL query result for " + name + ".");

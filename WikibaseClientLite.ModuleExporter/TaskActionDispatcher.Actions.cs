@@ -20,9 +20,9 @@ partial class TaskActionDispatcher
         if (destDir != null)
         {
             using (var mf = new FileSystemLuaModuleFactory(destDir))
-            using (var dumpReader = File.OpenText(sourceDump))
+            using (var dumpStream = File.OpenRead(sourceDump))
             {
-                await exporter.ExportItemsAsync(dumpReader, mf);
+                await exporter.ExportItemsAsync(dumpStream, mf);
                 await mf.ShutdownAsync();
             }
         }
@@ -31,9 +31,9 @@ partial class TaskActionDispatcher
         {
             using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetSiteAsync(destSite),
                        (string)options["exportSitePrefix"], logger))
-            using (var dumpReader = File.OpenText(sourceDump))
+            using (var dumpStream = File.OpenRead(sourceDump))
             {
-                await exporter.ExportItemsAsync(dumpReader, mf);
+                await exporter.ExportItemsAsync(dumpStream, mf);
                 await mf.ShutdownAsync();
             }
         }
@@ -51,9 +51,9 @@ partial class TaskActionDispatcher
         if (destDir != null)
         {
             using (var mf = new FileSystemLuaModuleFactory(destDir))
-            using (var dumpReader = File.OpenText(sourceDump))
+            using (var dumpStream = File.OpenRead(sourceDump))
             {
-                await exporter.ExportSiteLinksAsync(dumpReader, mf, shards);
+                await exporter.ExportSiteLinksAsync(dumpStream, mf, shards);
                 await mf.ShutdownAsync();
             }
         }
@@ -62,9 +62,9 @@ partial class TaskActionDispatcher
         {
             using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetSiteAsync(destSite),
                        (string)options["exportSitePrefix"], logger))
-            using (var dumpReader = File.OpenText(sourceDump))
+            using (var dumpStream = File.OpenRead(sourceDump))
             {
-                await exporter.ExportSiteLinksAsync(dumpReader, mf, shards);
+                await exporter.ExportSiteLinksAsync(dumpStream, mf, shards);
                 await mf.ShutdownAsync();
             }
         }

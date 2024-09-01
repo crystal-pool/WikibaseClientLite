@@ -1,8 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿namespace WikibaseClientLite.ModuleExporter.Sparql.Contracts;
 
-namespace WikibaseClientLite.ModuleExporter.Sparql.Contracts;
-
-[JsonObject]
 public class AotSparqlModuleRoot
 {
 
@@ -13,7 +10,6 @@ public class AotSparqlModuleRoot
 
 }
 
-[JsonObject]
 public class AotSparqlQueryResultSet
 {
 
@@ -36,7 +32,6 @@ public class AotSparqlQueryResultSet
 
 }
 
-[JsonObject]
 public class AotSparqlQueryResult
 {
 

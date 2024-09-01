@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using Luaon;
 using Luaon.Json;
+using Newtonsoft.Json.Linq;
 using Serilog;
 using WikibaseClientLite.ModuleExporter.ObjectModel;
 using WikiClientLibrary.Wikibase;
@@ -67,15 +68,17 @@ public class DataModulesExporter
         return c;
     }
 
-    public async Task ExportItemsAsync(TextReader itemsDumpReader, LuaModuleFactory moduleFactory)
+    public async Task ExportItemsAsync(Stream itemDumpStream, LuaModuleFactory moduleFactory)
     {
-        if (itemsDumpReader == null) throw new ArgumentNullException(nameof(itemsDumpReader));
-        if (moduleFactory == null) throw new ArgumentNullException(nameof(moduleFactory));
+        ArgumentNullException.ThrowIfNull(itemDumpStream);
+        ArgumentNullException.ThrowIfNull(moduleFactory);
+
         var languages = new List<string>(Languages ?? defaultLanguages);
         int items = 0, properties = 0;
         var statusReportSw = Stopwatch.StartNew();
-        foreach (var entity in SerializableEntity.LoadAll(itemsDumpReader))
+        await foreach (var entity in SerializableEntity.LoadAllAsync(itemDumpStream))
         {
+            if (entity == null) continue;
             if (entity.Type == EntityType.Item) items++;
             else if (entity.Type == EntityType.Property)
                 properties++;
@@ -98,12 +101,15 @@ public class DataModulesExporter
             // Persist
             using (var module = moduleFactory.GetModule(entity.Id))
             {
-                using (var writer = module.Writer)
+                await using (var writer = module.Writer)
                 {
                     WriteProlog(writer, $"Entity: {entity.Id} ({entity.Labels["en"]})");
-                    using (var luawriter = new JsonLuaWriter(writer) { CloseOutput = false })
+                    await using (var luawriter = new JsonLuaWriter(writer) { CloseOutput = false })
                     {
-                        entity.WriteTo(luawriter);
+                        // https://github.com/JamesNK/Newtonsoft.Json/issues/2910
+                        // Seems nobody cares
+                        // TODO Remove JSON node conversion
+                        await JToken.Parse(entity.ToJsonString()).WriteToAsync(luawriter);
                     }
 
                     WriteEpilog(writer);
@@ -121,9 +127,9 @@ public class DataModulesExporter
         Logger.Information("Exported LUA modules for {Items} items and {Properties} properties.", items, properties);
     }
 
-    public async Task ExportSiteLinksAsync(TextReader itemsDumpReader, LuaModuleFactory moduleFactory, int shardCount)
+    public async Task ExportSiteLinksAsync(Stream itemDumpStream, LuaModuleFactory moduleFactory, int shardCount)
     {
-        if (itemsDumpReader == null) throw new ArgumentNullException(nameof(itemsDumpReader));
+        ArgumentNullException.ThrowIfNull(itemDumpStream);
         if (moduleFactory == null) throw new ArgumentNullException(nameof(moduleFactory));
         if (shardCount <= 0) throw new ArgumentOutOfRangeException(nameof(shardCount));
         if (ClientSiteName == null) throw new ArgumentNullException(nameof(ClientSiteName));
@@ -140,9 +146,9 @@ public class DataModulesExporter
         foreach (var writer in shardLuaWriters) writer.WriteStartTable();
         try
         {
-            foreach (var entity in SerializableEntity.LoadAll(itemsDumpReader))
+            foreach (var entity in SerializableEntity.LoadAll(itemDumpStream))
             {
-                var siteLink = entity.SiteLinks.FirstOrDefault(l => l.Site == ClientSiteName);
+                var siteLink = entity?.SiteLinks.FirstOrDefault(l => l.Site == ClientSiteName);
                 if (siteLink == null) continue;
                 var shardIndex = Utility.HashString(siteLink.Title) % shardCount;
                 var writer = shardLuaWriters[shardIndex];
