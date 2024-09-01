@@ -22,7 +22,10 @@ public class WikiSiteProvider : IDisposable, IWikiFamily
         if (siteConfig == null) throw new ArgumentNullException(nameof(siteConfig));
         if (logger == null) throw new ArgumentNullException(nameof(logger));
         this.siteConfig = siteConfig.ToList();
-        wikiClient = new WikiClient();
+        wikiClient = new WikiClient
+        {
+            ClientUserAgent = WikiClientHelper.BuildUserAgent(typeof(WikiSiteProvider).Assembly),
+        };
         sitesCacheDict = new ConcurrentDictionary<string, WikiSite>(StringComparer.InvariantCultureIgnoreCase);
         loggerFactory = new LoggerFactory(Enumerable.Empty<ILoggerProvider>(),
                 new LoggerFilterOptions { MinLevel = LogLevel.Warning })

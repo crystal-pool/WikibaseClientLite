@@ -4,7 +4,6 @@ using System.Text.Json;
 using Luaon.Json;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
 using Serilog;
 using VDS.RDF;
 using VDS.RDF.Nodes;
