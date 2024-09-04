@@ -16,12 +16,14 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
     private readonly Channel<QueuedWritingTask> channel =
         Channel.CreateBounded<QueuedWritingTask>(new BoundedChannelOptions(100) { FullMode = BoundedChannelFullMode.Wait });
 
+    private readonly Task writerTask;
+
     public WikiSiteLuaModuleFactory(WikiSite site, string titlePrefix, ILogger logger)
     {
         Site = site;
         TitlePrefix = titlePrefix;
         this.logger = logger.ForContext<WikiSiteLuaModuleFactory>();
-        _ = WriteAsync(channel.Reader);
+        writerTask = WriteAsync(channel.Reader);
     }
 
     public WikiSite Site { get; }
@@ -38,6 +40,8 @@ public class WikiSiteLuaModuleFactory : LuaModuleFactory
     {
         channel.Writer.Complete();
         await channel.Reader.Completion;
+        // Also wait for the writing operation to async complete.
+        await writerTask;
     }
 
     protected override void Dispose(bool disposing)
