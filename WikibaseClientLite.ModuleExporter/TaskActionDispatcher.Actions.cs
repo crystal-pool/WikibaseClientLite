@@ -73,36 +73,33 @@ partial class TaskActionDispatcher
     public async Task ExecuteAotSparqlAction(AotSparqlOptions options)
     {
         if (options == null) throw new ArgumentNullException(nameof(options));
-        using (var namespaceMap = new NamespaceMapper())
+        using var namespaceMap = new NamespaceMapper();
+        foreach (var entry in options.NamespaceMapping)
+            namespaceMap.AddNamespace(entry.Key, new Uri(entry.Value));
+        using var moduleFactory = await OptionUtility.CreateExportModuleFactoryAsync(options.ExportModulePrefix, mwSiteProvider, logger);
+        using var executor = new AotSparqlExecutor(options.DataSource, namespaceMap, uri =>
         {
-            foreach (var entry in options.NamespaceMapping)
-                namespaceMap.AddNamespace(entry.Key, new Uri(entry.Value));
-            using (var moduleFactory = await OptionUtility.CreateExportModuleFactoryAsync(options.ExportModulePrefix, mwSiteProvider, logger))
-            using (var executor = new AotSparqlExecutor(options.DataSource, namespaceMap, uri =>
-                   {
-                       // Blank node.
-                       if (uri == null) return "_:";
-                       // One.
-                       if (uri == Utility.WikibaseRdfUnityEntity) return "1";
-                       if (namespaceMap.ReduceToQName(uri.ToString(), out var qname))
-                       {
-                           // Remove prefix for local entities.
-                           if (qname.StartsWith("wd:", StringComparison.OrdinalIgnoreCase))
-                               return qname.Substring(3);
-                           return qname;
-                       }
-                       throw new InvalidOperationException($"Cannot reduce {uri} into its QName.");
-                   }, logger.ForContext<AotSparqlExecutor>()))
+            // Blank node.
+            if (uri == null) return "_:";
+            // One.
+            if (uri == Utility.WikibaseRdfUnityEntity) return "1";
+            if (namespaceMap.ReduceToQName(uri.ToString(), out var qname))
             {
-                var exporter = new AotSparqlModuleExporter(logger, moduleFactory, executor);
-                {
-                    var (configSite, configModule) = await OptionUtility.ResolveSiteAndTitleAsync(options.ConfigModule, mwSiteProvider);
-                    await exporter.LoadConfigFromModuleAsync(configSite, configModule);
-                    logger.Information("Loaded config from {Module}.", options.ConfigModule);
-                }
-                await exporter.ExportModulesAsync();
+                // Remove prefix for local entities.
+                if (qname.StartsWith("wd:", StringComparison.OrdinalIgnoreCase))
+                    return qname.Substring(3);
+                return qname;
             }
+            throw new InvalidOperationException($"Cannot reduce {uri} into its QName.");
+        }, logger.ForContext<AotSparqlExecutor>());
+        var exporter = new AotSparqlModuleExporter(logger, moduleFactory, executor);
+        {
+            var (configSite, configModule) = await OptionUtility.ResolveSiteAndTitleAsync(options.ConfigModule, mwSiteProvider);
+            await exporter.LoadConfigFromModuleAsync(configSite, configModule);
+            logger.Information("Loaded config from {Module}.", options.ConfigModule);
         }
+        await exporter.ExportModulesAsync();
+        await moduleFactory.ShutdownAsync();
     }
 
 }
