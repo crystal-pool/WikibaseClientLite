@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
 using VDS.RDF;
-using WikibaseClientLite.ModuleExporter.ObjectModel;
 using WikibaseClientLite.ModuleExporter.Sparql;
 using WikibaseClientLite.ModuleExporter.Tasks;
 
@@ -16,27 +15,10 @@ partial class TaskActionDispatcher
         {
             Languages = options["languages"]?.ToObject<IList<string>>(),
         };
-        var destDir = (string)options["exportDirectory"];
-        if (destDir != null)
-        {
-            using (var mf = new FileSystemLuaModuleFactory(destDir))
-            using (var dumpStream = File.OpenRead(sourceDump))
-            {
-                await exporter.ExportItemsAsync(dumpStream, mf);
-                await mf.ShutdownAsync();
-            }
-        }
-        var destSite = (string)options["exportSite"];
-        if (destSite != null)
-        {
-            using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetSiteAsync(destSite),
-                       (string)options["exportSitePrefix"], logger))
-            using (var dumpStream = File.OpenRead(sourceDump))
-            {
-                await exporter.ExportItemsAsync(dumpStream, mf);
-                await mf.ShutdownAsync();
-            }
-        }
+        using var mf = await OptionUtility.CreateExportModuleFactoryAsync((string)options["exportModulePrefix"], mwSiteProvider, logger);
+        await using var dumpStream = File.OpenRead(sourceDump);
+        await exporter.ExportItemsAsync(dumpStream, mf);
+        await mf.ShutdownAsync();
     }
 
     public async Task ExportSiteLinksAction(JObject options)
@@ -47,27 +29,10 @@ partial class TaskActionDispatcher
             ClientSiteName = (string)options["clientSiteName"]
         };
         var shards = (int?)options["shards"] ?? 1;
-        var destDir = (string)options["exportDirectory"];
-        if (destDir != null)
-        {
-            using (var mf = new FileSystemLuaModuleFactory(destDir))
-            using (var dumpStream = File.OpenRead(sourceDump))
-            {
-                await exporter.ExportSiteLinksAsync(dumpStream, mf, shards);
-                await mf.ShutdownAsync();
-            }
-        }
-        var destSite = (string)options["exportSite"];
-        if (destSite != null)
-        {
-            using (var mf = new WikiSiteLuaModuleFactory(await mwSiteProvider.GetSiteAsync(destSite),
-                       (string)options["exportSitePrefix"], logger))
-            using (var dumpStream = File.OpenRead(sourceDump))
-            {
-                await exporter.ExportSiteLinksAsync(dumpStream, mf, shards);
-                await mf.ShutdownAsync();
-            }
-        }
+        using var mf = await OptionUtility.CreateExportModuleFactoryAsync((string)options["exportModulePrefix"], mwSiteProvider, logger);
+        await using var dumpStream = File.OpenRead(sourceDump);
+        await exporter.ExportSiteLinksAsync(dumpStream, mf, shards);
+        await mf.ShutdownAsync();
     }
 
     public async Task ExecuteAotSparqlAction(AotSparqlOptions options)
